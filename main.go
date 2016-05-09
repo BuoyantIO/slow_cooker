@@ -44,7 +44,7 @@ func sendRequest(url *url.URL, host *string, received chan *MeasuredResponse) {
 }
 
 func exUsage(msg string) {
-  fmt.Fprintf(os.Stderr, "%s\n", msg)
+	fmt.Fprintf(os.Stderr, "%s\n", msg)
 	fmt.Fprintf(os.Stderr, "Usage: %s [flags]\n", path.Base(os.Args[0]))
 	flag.PrintDefaults()
 	os.Exit(64)
