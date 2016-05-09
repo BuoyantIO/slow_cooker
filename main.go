@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"time"
 )
 
@@ -42,13 +43,10 @@ func sendRequest(url *url.URL, host *string, received chan *MeasuredResponse) {
 	}
 }
 
-var usageErrFmt = `slow_cooker [--qps=1] [--concurrency=1] [--method=GET] [--url=http://localhost:4140/]
-Error: %s
-Try slow_cooker --help for more info.
-`
-
 func exUsage(msg string) {
-	fmt.Fprintf(os.Stderr, usageErrFmt, msg)
+  fmt.Fprintf(os.Stderr, "%s\n", msg)
+	fmt.Fprintf(os.Stderr, "Usage: %s [flags]\n", path.Base(os.Args[0]))
+	flag.PrintDefaults()
 	os.Exit(64)
 }
 
@@ -59,10 +57,19 @@ func main() {
 	urldest := flag.String("url", "http://localhost:4140/", "Destination url")
 	interval := flag.Duration("interval", 10*time.Second, "reporting interval")
 
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage: %s [flags]\n", path.Base(os.Args[0]))
+		flag.PrintDefaults()
+	}
+
 	flag.Parse()
 
+	if *qps < 1 {
+		exUsage("qps must be at least 1")
+	}
+
 	if *concurrency < 1 {
-		exUsage("--concurrency must be at least 1")
+		exUsage("concurrency must be at least 1")
 	}
 
 	dstURL, err := url.Parse(*urldest)
