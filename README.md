@@ -9,7 +9,7 @@ periodic reports of qps and latency.
 
 # Flags
 
-```-qps 1```
+`-qps 1`
 
 Queries per second to send to a backend.
 
@@ -61,3 +61,8 @@ $ slow_cooker -qps 200 -concurrency 10
 timestamp\t good/bad requests\t size kilobytes\t interval\t[p50/p95/p99/p999] latency
 ```
 
+# TODO
+ * Better output format using padding rather than tabs.
+ * Instrument the http client rather than just measuring around the function call.
+ * Evaluate whether bytes returned is valuable enough for output.
+ * Test that the HDR buckets are set appropriately for an http backend.
