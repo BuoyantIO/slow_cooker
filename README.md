@@ -40,6 +40,9 @@ If you want to send multiple Host headers to a backend, run multiple
 
 ```$ slow_cooker -host web_b -qps 200```
 
+Would send 300 qps total to the default URL (`http://localhost:4140/`)
+with 100 qps sent with `Host: web_a` and 200 qps sent with `Host: web_b`
+
 # Example usage
 
 ```
