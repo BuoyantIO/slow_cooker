@@ -69,7 +69,7 @@ slowdowns. If you're running multi-hour tests, bumping up the reporting
 interval to 60 seconds (`60s` or `1m`) is recommended.
 
 ```
-$timestamp $good/$bad requests $size kilobytes $interval [$p50 $p95 $p99 $p999] $latency
+$timestamp $good/$bad requests $size kilobytes $interval [$p50 $p95 $p99 $p999]
 ```
 
 # TODO
