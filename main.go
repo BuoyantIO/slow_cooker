@@ -103,7 +103,7 @@ func main() {
 		select {
 		case t := <-timeout:
 			// Periodically print stats about the request load.
-			fmt.Printf("%s\t%d/%d requests\t %d kilobytes\t %s [%d/%d/%d/%d]\n",
+			fmt.Printf("%s %6d/%1d requests %6d kilobytes %s [%3d %3d %3d %3d]\n",
 				t.Format(time.RFC3339),
 				good,
 				bad,
