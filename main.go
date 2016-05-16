@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/codahale/hdrhistogram"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -11,6 +10,8 @@ import (
 	"os"
 	"path"
 	"time"
+
+	"github.com/codahale/hdrhistogram"
 )
 
 type MeasuredResponse struct {
@@ -20,8 +21,10 @@ type MeasuredResponse struct {
 	timeout bool
 }
 
-func sendRequest(url *url.URL, host *string, received chan *MeasuredResponse) {
-	client := &http.Client{}
+func sendRequest(client *http.Client, url *url.URL, host *string, received chan *MeasuredResponse) {
+	if client == nil {
+		client = &http.Client{}
+	}
 	req, err := http.NewRequest("GET", url.String(), nil)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
@@ -31,6 +34,7 @@ func sendRequest(url *url.URL, host *string, received chan *MeasuredResponse) {
 	// FIX: find a way to measure latency with the http client.
 	start := time.Now()
 	response, err := client.Do(req)
+
 	elapsed := time.Since(start)
 	if err != nil {
 		// FIX: handle errors more gracefully.
@@ -56,6 +60,7 @@ func main() {
 	host := flag.String("host", "web", "value of Host header to set")
 	urldest := flag.String("url", "http://localhost:4140/", "Destination url")
 	interval := flag.Duration("interval", 10*time.Second, "reporting interval")
+	reuse := flag.Bool("reuse", false, "reuse connections")
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: %s [flags]\n", path.Base(os.Args[0]))
@@ -90,11 +95,16 @@ func main() {
 
 	timeToWait := time.Millisecond * time.Duration(1000 / *qps)
 
+	var client *http.Client
+	if *reuse {
+		client = &http.Client{}
+	}
+
 	for i := uint(0); i < *concurrency; i++ {
 		ticker := time.NewTicker(timeToWait)
 		go func() {
 			for _ = range ticker.C {
-				sendRequest(dstURL, host, received)
+				sendRequest(client, dstURL, host, received)
 			}
 		}()
 	}
@@ -103,7 +113,7 @@ func main() {
 		select {
 		case t := <-timeout:
 			// Periodically print stats about the request load.
-			fmt.Printf("%s %6d/%1d requests %6d kilobytes %s [%3d %3d %3d %3d ]\n",
+			fmt.Printf("%s %6d/%1d requests %6d kilobytes %s [%3d %3d %3d %4d ]\n",
 				t.Format(time.RFC3339),
 				good,
 				bad,
@@ -122,7 +132,7 @@ func main() {
 		case managedResp := <-received:
 			count++
 			size += managedResp.sz
-			if managedResp.code >= 200 && managedResp.code < 300 {
+			if managedResp.code >= 200 && managedResp.code < 500 {
 				good++
 			} else {
 				bad++

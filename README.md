@@ -31,6 +31,10 @@ How often to report to stdout.
 
 The url to send backend traffic to.
 
+`-reuse`
+
+Reuse connections and reuse a single thread-safe http client.
+
 # Using multiple Host headers
 
 If you want to send multiple Host headers to a backend, run multiple
