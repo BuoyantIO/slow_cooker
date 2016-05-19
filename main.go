@@ -29,6 +29,7 @@ func sendRequest(client *http.Client, url *url.URL, host *string, received chan 
 	req, err := http.NewRequest("GET", url.String(), nil)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
+		fmt.Fprintln(os.Stderr, "\n")
 	}
 	req.Host = *host
 
