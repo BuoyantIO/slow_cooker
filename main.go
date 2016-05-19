@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"flag"
 	"fmt"
 	"io"
@@ -95,9 +96,13 @@ func main() {
 
 	timeToWait := time.Millisecond * time.Duration(1000 / *qps)
 
+	tr := http.Transport{}
+	if dstURL.Scheme == "https" {
+		tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+	}
 	var client *http.Client
 	if *reuse {
-		client = &http.Client{}
+		client = &http.Client{Transport: &tr}
 	}
 
 	for i := uint(0); i < *concurrency; i++ {

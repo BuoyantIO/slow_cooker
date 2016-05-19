@@ -48,6 +48,12 @@ This command will send 300 qps total to the default URL
 (`http://localhost:4140/`) with 100 qps sent with `Host: web_a` and
 200 qps sent with `Host: web_b`
 
+# TLS use
+
+Pass in an https url with the `-url` flag and it'll use TLS.
+
+_Warning_ We do not verify the certificate, we use `InsecureSkipVerify: true`
+
 # Example usage
 
 ```
