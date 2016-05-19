@@ -35,6 +35,10 @@ The url to send backend traffic to.
 
 Reuse connections and reuse a single thread-safe http client.
 
+`-compress`
+
+Ask for compressed responses.
+
 # Using multiple Host headers
 
 If you want to send multiple Host headers to a backend, run multiple

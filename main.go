@@ -63,6 +63,7 @@ func main() {
 	urldest := flag.String("url", "http://localhost:4140/", "Destination url")
 	interval := flag.Duration("interval", 10*time.Second, "reporting interval")
 	reuse := flag.Bool("reuse", false, "reuse connections")
+	compress := flag.Bool("compress", false, "use compression")
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: %s [flags]\n", path.Base(os.Args[0]))
@@ -97,7 +98,7 @@ func main() {
 
 	timeToWait := time.Millisecond * time.Duration(1000 / *qps)
 
-	tr := http.Transport{}
+	tr := http.Transport{DisableCompression: !*compress}
 	if dstURL.Scheme == "https" {
 		tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	}
