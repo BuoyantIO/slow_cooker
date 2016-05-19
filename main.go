@@ -39,7 +39,7 @@ func sendRequest(client *http.Client, url *url.URL, host *string, received chan 
 	elapsed := time.Since(start)
 	if err != nil {
 		// FIX: handle errors more gracefully.
-		fmt.Printf("%s", err)
+		fmt.Printf("%s\n", err)
 		os.Exit(1)
 	} else {
 		sz, _ := io.Copy(ioutil.Discard, response.Body)
@@ -80,7 +80,7 @@ func main() {
 
 	dstURL, err := url.Parse(*urldest)
 	if err != nil {
-		exUsage(fmt.Sprintf("invalid URL: '%s': %s", urldest, err.Error()))
+		exUsage(fmt.Sprintf("invalid URL: '%s': %s\n", urldest, err.Error()))
 	}
 
 	// Repsonse tracking metadata.
