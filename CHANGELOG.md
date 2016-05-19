@@ -9,4 +9,14 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - better error reporting by adding a few strategic newlines.
 
 ### Added
-- TLS automatically used if https urls are passed into `-url`
+- TLS automatically used if https urls are passed into `-url
+- Release script now builds darwin binaries
+
+
+## [0.5.0] - 2016-05-18
+### Changed
+- better output lines using padding rather than tabs
+
+### Added
+- reuse connections with the `-reuse` flag
+- static binaries available in the Releases page
