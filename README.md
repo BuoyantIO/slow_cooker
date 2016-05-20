@@ -76,6 +76,20 @@ $ ./slow_cooker -qps 100 -concurrency 10
 2016-05-16T20:46:58Z   7232/0 requests   4322 kilobytes 10s [ 11  26  35  63 ]
 ```
 
+## Docker usage
+
+### Run
+
+```bash
+docker run -it buoyantio/slow_cooker -url http://$(docker-machine ip default):4140 -qps 100 -concurrency 10
+```
+
+### Build your own
+
+```bash
+docker build -t buoyantio/slow_cooker -f Dockerfile .
+```
+
 # Log format
 
 We use vertical alignment in the output to help find anomalies and spot

@@ -11,6 +11,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
 - TLS automatically used if https urls are passed into `-url
 - Release script now builds darwin binaries
+- Dockerfile
+- Marathon config file
 
 
 ## [0.5.0] - 2016-05-18
