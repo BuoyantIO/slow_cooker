@@ -20,6 +20,7 @@ type MeasuredResponse struct {
 	code    int
 	latency int64
 	timeout bool
+	err     error
 }
 
 func newClient(
@@ -56,13 +57,11 @@ func sendRequest(
 
 	elapsed := time.Since(start)
 	if err != nil {
-		// FIX: handle errors more gracefully.
-		fmt.Printf("%s\n", err)
-		os.Exit(1)
+		received <- &MeasuredResponse{0, 0, 0, false, err}
 	} else {
 		sz, _ := io.Copy(ioutil.Discard, response.Body)
 		response.Body.Close()
-		received <- &MeasuredResponse{uint64(sz), response.StatusCode, elapsed.Nanoseconds(), false}
+		received <- &MeasuredResponse{uint64(sz), response.StatusCode, elapsed.Nanoseconds(), false, nil}
 	}
 }
 
@@ -107,6 +106,7 @@ func main() {
 	size := uint64(0)
 	good := uint64(0)
 	bad := uint64(0)
+	failed := uint64(0)
 	// from 0 to 1 minute in nanoseconds
 	// FIX: verify that these buckets work correctly for our use case.
 	hist := hdrhistogram.New(0, 60000000000, 5)
@@ -131,10 +131,11 @@ func main() {
 		select {
 		case t := <-timeout:
 			// Periodically print stats about the request load.
-			fmt.Printf("%s %6d/%1d requests %6d kilobytes %s [%3d %3d %3d %4d ]\n",
+			fmt.Printf("%s %6d/%1d/%1d requests %6d kilobytes %s [%3d %3d %3d %4d ]\n",
 				t.Format(time.RFC3339),
 				good,
 				bad,
+				failed,
 				(size / 1024),
 				interval,
 				hist.ValueAtQuantile(50)/1000000,
@@ -145,17 +146,23 @@ func main() {
 			size = 0
 			good = 0
 			bad = 0
+			failed = 0
 			hist = hdrhistogram.New(0, 60000000000, 5)
 			timeout = time.After(*interval)
 		case managedResp := <-received:
 			count++
-			size += managedResp.sz
-			if managedResp.code >= 200 && managedResp.code < 500 {
-				good++
+			if managedResp.err != nil {
+				fmt.Fprintln(os.Stderr, managedResp.err)
+				failed++
 			} else {
-				bad++
+				size += managedResp.sz
+				if managedResp.code >= 200 && managedResp.code < 500 {
+					good++
+				} else {
+					bad++
+				}
+				hist.RecordValue(managedResp.latency)
 			}
-			hist.RecordValue(managedResp.latency)
 		}
 	}
 }
