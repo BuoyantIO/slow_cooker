@@ -22,10 +22,27 @@ type MeasuredResponse struct {
 	timeout bool
 }
 
-func sendRequest(client *http.Client, url *url.URL, host *string, received chan *MeasuredResponse) {
-	if client == nil {
-		client = &http.Client{}
+func newClient(
+	compress bool,
+	https bool,
+	reuse bool,
+) *http.Client {
+	tr := http.Transport{
+		DisableCompression: !compress,
+		DisableKeepAlives:  !reuse,
 	}
+	if https {
+		tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+	}
+	return &http.Client{Transport: &tr}
+}
+
+func sendRequest(
+	client *http.Client,
+	url *url.URL,
+	host *string,
+	received chan *MeasuredResponse,
+) {
 	req, err := http.NewRequest("GET", url.String(), nil)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
@@ -98,14 +115,8 @@ func main() {
 
 	timeToWait := time.Millisecond * time.Duration(1000 / *qps)
 
-	tr := http.Transport{DisableCompression: !*compress}
-	if dstURL.Scheme == "https" {
-		tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
-	}
-	var client *http.Client
-	if *reuse {
-		client = &http.Client{Transport: &tr}
-	}
+	doTLS := dstURL.Scheme == "https"
+	client := newClient(*compress, doTLS, *reuse)
 
 	for i := uint(0); i < *concurrency; i++ {
 		ticker := time.NewTicker(timeToWait)
