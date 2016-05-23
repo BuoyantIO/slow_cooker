@@ -20,12 +20,32 @@ type MeasuredResponse struct {
 	code    int
 	latency int64
 	timeout bool
+	err     error
 }
 
-func sendRequest(client *http.Client, url *url.URL, host *string, received chan *MeasuredResponse) {
-	if client == nil {
-		client = &http.Client{}
+func newClient(
+	compress bool,
+	https bool,
+	reuse bool,
+	maxConn uint,
+) *http.Client {
+	tr := http.Transport{
+		DisableCompression:  !compress,
+		DisableKeepAlives:   !reuse,
+		MaxIdleConnsPerHost: int(maxConn),
 	}
+	if https {
+		tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+	}
+	return &http.Client{Transport: &tr}
+}
+
+func sendRequest(
+	client *http.Client,
+	url *url.URL,
+	host *string,
+	received chan *MeasuredResponse,
+) {
 	req, err := http.NewRequest("GET", url.String(), nil)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
@@ -39,13 +59,11 @@ func sendRequest(client *http.Client, url *url.URL, host *string, received chan 
 
 	elapsed := time.Since(start)
 	if err != nil {
-		// FIX: handle errors more gracefully.
-		fmt.Printf("%s\n", err)
-		os.Exit(1)
+		received <- &MeasuredResponse{0, 0, 0, false, err}
 	} else {
 		sz, _ := io.Copy(ioutil.Discard, response.Body)
 		response.Body.Close()
-		received <- &MeasuredResponse{uint64(sz), response.StatusCode, elapsed.Nanoseconds(), false}
+		received <- &MeasuredResponse{uint64(sz), response.StatusCode, elapsed.Nanoseconds(), false, nil}
 	}
 }
 
@@ -90,6 +108,7 @@ func main() {
 	size := uint64(0)
 	good := uint64(0)
 	bad := uint64(0)
+	failed := uint64(0)
 	// from 0 to 1 minute in nanoseconds
 	// FIX: verify that these buckets work correctly for our use case.
 	hist := hdrhistogram.New(0, 60000000000, 5)
@@ -98,14 +117,8 @@ func main() {
 
 	timeToWait := time.Millisecond * time.Duration(1000 / *qps)
 
-	tr := http.Transport{DisableCompression: !*compress}
-	if dstURL.Scheme == "https" {
-		tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
-	}
-	var client *http.Client
-	if *reuse {
-		client = &http.Client{Transport: &tr}
-	}
+	doTLS := dstURL.Scheme == "https"
+	client := newClient(*compress, doTLS, *reuse, *concurrency)
 
 	for i := uint(0); i < *concurrency; i++ {
 		ticker := time.NewTicker(timeToWait)
@@ -120,10 +133,11 @@ func main() {
 		select {
 		case t := <-timeout:
 			// Periodically print stats about the request load.
-			fmt.Printf("%s %6d/%1d requests %6d kilobytes %s [%3d %3d %3d %4d ]\n",
+			fmt.Printf("%s %6d/%1d/%1d requests %6d kilobytes %s [%3d %3d %3d %4d ]\n",
 				t.Format(time.RFC3339),
 				good,
 				bad,
+				failed,
 				(size / 1024),
 				interval,
 				hist.ValueAtQuantile(50)/1000000,
@@ -134,17 +148,23 @@ func main() {
 			size = 0
 			good = 0
 			bad = 0
+			failed = 0
 			hist = hdrhistogram.New(0, 60000000000, 5)
 			timeout = time.After(*interval)
 		case managedResp := <-received:
 			count++
-			size += managedResp.sz
-			if managedResp.code >= 200 && managedResp.code < 500 {
-				good++
+			if managedResp.err != nil {
+				fmt.Fprintln(os.Stderr, managedResp.err)
+				failed++
 			} else {
-				bad++
+				size += managedResp.sz
+				if managedResp.code >= 200 && managedResp.code < 500 {
+					good++
+				} else {
+					bad++
+				}
+				hist.RecordValue(managedResp.latency)
 			}
-			hist.RecordValue(managedResp.latency)
 		}
 	}
 }
