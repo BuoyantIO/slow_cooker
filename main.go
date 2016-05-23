@@ -27,10 +27,12 @@ func newClient(
 	compress bool,
 	https bool,
 	reuse bool,
+	maxConn uint,
 ) *http.Client {
 	tr := http.Transport{
-		DisableCompression: !compress,
-		DisableKeepAlives:  !reuse,
+		DisableCompression:  !compress,
+		DisableKeepAlives:   !reuse,
+		MaxIdleConnsPerHost: int(maxConn),
 	}
 	if https {
 		tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
@@ -116,7 +118,7 @@ func main() {
 	timeToWait := time.Millisecond * time.Duration(1000 / *qps)
 
 	doTLS := dstURL.Scheme == "https"
-	client := newClient(*compress, doTLS, *reuse)
+	client := newClient(*compress, doTLS, *reuse, *concurrency)
 
 	for i := uint(0); i < *concurrency; i++ {
 		ticker := time.NewTicker(timeToWait)
