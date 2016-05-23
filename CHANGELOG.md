@@ -3,10 +3,12 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
-## [Unreleased]
+## [0.6.0] - 2016-05-23
 ### Changed
 - compression turned off by default. re-enable it with `-compress`
-- better error reporting by adding a few strategic newlines.
+- better error reporting by adding a few strategic newlines
+- compression, etc settings were not set when client reuse was disabled
+- tie maxConns to concurrency to avoid FD exhaustion
 
 ### Added
 - TLS automatically used if https urls are passed into `-url
