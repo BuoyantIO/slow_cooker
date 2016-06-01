@@ -100,6 +100,27 @@ interval to 60 seconds (`60s` or `1m`) is recommended.
 $timestamp $good/$bad requests $size kilobytes $interval [$p50 $p95 $p99 $p999]
 ```
 
+## Tips and tricks
+
+### keep a logfile
+
+Use `tee` to keep a logfile of slow_cooker results and `cut` to find bad or failed requests.
+
+`./slow_cooker_linux_amd64 -qps 5 -concurrency 20 -interval 10s -reuse | tee slow_cooker.log`
+
+### use cut to look at specific fields from your tee'd logfile
+
+`cat slow_cook.log |cut -d ' ' -f 3 | cut -d '/' -f 2 |sort -rn |uniq -c`
+
+will show all bad (status code > 500) requests.
+
+`cat slow_cook.log |cut -d ' ' -f 3 | cut -d '/' -f 3 |sort -rn |uniq -c`
+
+will show all failed (connection refused, dropped, etc) requests.
+
+If you have scripts that process slow_cooker logs, feel free to add
+them to this project!
+
 # TODO
  * Instrument the http client rather than just measuring around the function call.
  * Evaluate whether bytes returned is valuable enough for default output.
