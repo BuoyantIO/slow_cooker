@@ -41,14 +41,14 @@ Ask for compressed responses.
 
 # Using multiple Host headers
 
-If you want to send multiple Host headers to a backend, run multiple
-`slow_cooker` processes and manually calculate the qps split.
+If you want to send multiple Host headers to a backend, pass a comma separated
+list to the host flag and/or run multiple slow_cooker processes.
 
-```$ slow_cooker -host web_a -qps 100```
+```$ slow_cooker -host web_a,web_b -qps 200```
 
-```$ slow_cooker -host web_b -qps 200```
+```$ slow_cooker -host web_b -qps 100```
 
-This command will send 300 qps total to the default URL
+These commands will send 300 qps total to the default URL
 (`http://localhost:4140/`) with 100 qps sent with `Host: web_a` and
 200 qps sent with `Host: web_b`
 

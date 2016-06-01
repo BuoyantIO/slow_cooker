@@ -6,10 +6,12 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"os"
 	"path"
+	"strings"
 	"time"
 
 	"github.com/codahale/hdrhistogram"
@@ -98,6 +100,8 @@ func main() {
 		exUsage("concurrency must be at least 1")
 	}
 
+	hosts := strings.Split(*host, ",")
+
 	dstURL, err := url.Parse(*urldest)
 	if err != nil {
 		exUsage(fmt.Sprintf("invalid URL: '%s': %s\n", urldest, err.Error()))
@@ -124,7 +128,7 @@ func main() {
 		ticker := time.NewTicker(timeToWait)
 		go func() {
 			for _ = range ticker.C {
-				sendRequest(client, dstURL, host, received)
+				sendRequest(client, dstURL, &hosts[rand.Intn(len(hosts))], received)
 			}
 		}()
 	}
