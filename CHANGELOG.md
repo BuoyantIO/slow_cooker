@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## Unreleased
+### Changed
+- Improved qps calculation when fractional milliseconds are involved. (Fixed #5)
+### Added
+- You can now pass a CSV of Host headers and it will fairly split traffic with each Host header.
+
 ## [0.6.0] - 2016-05-23
 ### Changed
 - compression turned off by default. re-enable it with `-compress`
