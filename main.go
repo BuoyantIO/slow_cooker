@@ -74,6 +74,12 @@ func exUsage(msg string) {
 	os.Exit(64)
 }
 
+// To achieve a target qps, we need to wait this many Nanoseconds
+// between actions.
+func CalcTimeToWait(qps *int) time.Duration {
+	return time.Duration(int(time.Second) / *qps)
+}
+
 func main() {
 	qps := flag.Int("qps", 1, "QPS to send to backends per request thread")
 	concurrency := flag.Uint("concurrency", 1, "Number of request threads")
@@ -114,8 +120,7 @@ func main() {
 	hist := hdrhistogram.New(0, 60000000000, 5)
 	received := make(chan *MeasuredResponse)
 	timeout := time.After(*interval)
-
-	timeToWait := time.Millisecond * time.Duration(1000 / *qps)
+	timeToWait := CalcTimeToWait(qps)
 
 	doTLS := dstURL.Scheme == "https"
 	client := newClient(*compress, doTLS, *reuse, *concurrency)
