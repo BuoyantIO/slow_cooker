@@ -112,7 +112,7 @@ Use `tee` to keep a logfile of slow_cooker results and `cut` to find bad or fail
 
 `cat slow_cook.log |cut -d ' ' -f 3 | cut -d '/' -f 2 |sort -rn |uniq -c`
 
-will show all bad (status code > 500) requests.
+will show all bad (status code >= 500) requests.
 
 `cat slow_cook.log |cut -d ' ' -f 3 | cut -d '/' -f 3 |sort -rn |uniq -c`
 
