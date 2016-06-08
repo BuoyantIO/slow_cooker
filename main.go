@@ -10,8 +10,11 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/signal"
 	"path"
 	"strings"
+	"sync"
+	"syscall"
 	"time"
 
 	"github.com/codahale/hdrhistogram"
@@ -82,6 +85,16 @@ func CalcTimeToWait(qps *int) time.Duration {
 	return time.Duration(int(time.Second) / *qps)
 }
 
+var shouldFinish = false
+var shouldFinishLock sync.RWMutex
+
+// Signals the system to stop sending traffic and clean up after itself.
+func finishSendingTraffic() {
+	shouldFinishLock.Lock()
+	shouldFinish = true
+	shouldFinishLock.Unlock()
+}
+
 func main() {
 	qps := flag.Int("qps", 1, "QPS to send to backends per request thread")
 	concurrency := flag.Uint("concurrency", 1, "Number of request threads")
@@ -128,18 +141,39 @@ func main() {
 
 	doTLS := dstURL.Scheme == "https"
 	client := newClient(*compress, doTLS, *reuse, *concurrency)
+	var sendTraffic sync.WaitGroup
 
 	for i := uint(0); i < *concurrency; i++ {
 		ticker := time.NewTicker(timeToWait)
 		go func() {
+			sendTraffic.Add(1)
 			for _ = range ticker.C {
-				sendRequest(client, dstURL, &hosts[rand.Intn(len(hosts))], received)
+				shouldFinishLock.RLock()
+				if !shouldFinish {
+					shouldFinishLock.RUnlock()
+					sendRequest(client, dstURL, &hosts[rand.Intn(len(hosts))], received)
+				} else {
+					shouldFinishLock.RUnlock()
+					sendTraffic.Done()
+					return
+				}
 			}
 		}()
 	}
 
+	cleanup := make(chan os.Signal)
+	signal.Notify(cleanup, syscall.SIGINT)
+
 	for {
 		select {
+		case <-cleanup:
+			finishSendingTraffic()
+			go func() {
+				// Don't Wait() in the event loop or else we'll block the workers
+				// from draining.
+				sendTraffic.Wait()
+				os.Exit(1)
+			}()
 		case t := <-timeout:
 			// Periodically print stats about the request load.
 			fmt.Printf("%s %6d/%1d/%1d requests %6d kilobytes %s [%3d %3d %3d %4d ]\n",
@@ -158,7 +192,7 @@ func main() {
 			good = 0
 			bad = 0
 			failed = 0
-			hist = hdrhistogram.New(0, 60000000000, 5)
+			hist.Reset()
 			timeout = time.After(*interval)
 		case managedResp := <-received:
 			count++
