@@ -12,8 +12,10 @@ import (
 	"os"
 	"os/signal"
 	"path"
+	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -49,6 +51,7 @@ func sendRequest(
 	client *http.Client,
 	url *url.URL,
 	host *string,
+	reqID uint64,
 	received chan *MeasuredResponse,
 ) {
 	req, err := http.NewRequest("GET", url.String(), nil)
@@ -57,6 +60,7 @@ func sendRequest(
 		fmt.Fprintln(os.Stderr, "\n")
 	}
 	req.Host = *host
+	req.Header.Add("Sc-Req-Id", strconv.FormatUint(reqID, 10))
 
 	// FIX: find a way to measure latency with the http client.
 	start := time.Now()
@@ -84,6 +88,8 @@ func exUsage(msg string) {
 func CalcTimeToWait(qps *int) time.Duration {
 	return time.Duration(int(time.Second) / *qps)
 }
+
+var reqID = uint64(0)
 
 var shouldFinish = false
 var shouldFinishLock sync.RWMutex
@@ -151,7 +157,7 @@ func main() {
 				shouldFinishLock.RLock()
 				if !shouldFinish {
 					shouldFinishLock.RUnlock()
-					sendRequest(client, dstURL, &hosts[rand.Intn(len(hosts))], received)
+					sendRequest(client, dstURL, &hosts[rand.Intn(len(hosts))], atomic.AddUint64(&reqID, 1), received)
 				} else {
 					shouldFinishLock.RUnlock()
 					sendTraffic.Done()
