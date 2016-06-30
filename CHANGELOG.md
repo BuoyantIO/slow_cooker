@@ -7,6 +7,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Changed
 - Output now shows good/bad/failed requests
 - Improved qps calculation when fractional milliseconds are involved. (Fixed #5)
+
 ### Added
 - You can now pass a CSV of Host headers and it will fairly split traffic with each Host header.
 - Each request has a header called Sc-Req-Id with a unique numeric value to help debug proxy interactions.
