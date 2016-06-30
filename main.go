@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/signal"
 	"path"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -59,7 +60,7 @@ func sendRequest(
 		fmt.Fprintln(os.Stderr, "\n")
 	}
 	req.Host = *host
-	req.Header.Add("Sc-Req-Id", fmt.Sprintf("%d", reqID))
+	req.Header.Add("Sc-Req-Id", strconv.FormatUint(reqID, 10))
 
 	// FIX: find a way to measure latency with the http client.
 	start := time.Now()
