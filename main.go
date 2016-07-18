@@ -53,6 +53,7 @@ func sendRequest(
 	host *string,
 	reqID uint64,
 	received chan *MeasuredResponse,
+	bodyBuffer []byte,
 ) {
 	req, err := http.NewRequest("GET", url.String(), nil)
 	if err != nil {
@@ -66,13 +67,16 @@ func sendRequest(
 	start := time.Now()
 	response, err := client.Do(req)
 
-	elapsed := time.Since(start)
 	if err != nil {
 		received <- &MeasuredResponse{0, 0, 0, false, err}
 	} else {
-		sz, _ := io.Copy(ioutil.Discard, response.Body)
-		response.Body.Close()
-		received <- &MeasuredResponse{uint64(sz), response.StatusCode, elapsed.Nanoseconds(), false, nil}
+		if sz, err := io.CopyBuffer(ioutil.Discard, response.Body, bodyBuffer); err == nil {
+			response.Body.Close()
+			elapsed := time.Since(start)
+			received <- &MeasuredResponse{uint64(sz), response.StatusCode, elapsed.Nanoseconds(), false, nil}
+		} else {
+			received <- &MeasuredResponse{0, 0, 0, false, err}
+		}
 	}
 }
 
@@ -152,12 +156,14 @@ func main() {
 	for i := uint(0); i < *concurrency; i++ {
 		ticker := time.NewTicker(timeToWait)
 		go func() {
+			// For each goroutine we want to reuse a buffer for performance reasons.
+			bodyBuffer := make([]byte, 50000)
 			sendTraffic.Add(1)
 			for _ = range ticker.C {
 				shouldFinishLock.RLock()
 				if !shouldFinish {
 					shouldFinishLock.RUnlock()
-					sendRequest(client, dstURL, &hosts[rand.Intn(len(hosts))], atomic.AddUint64(&reqID, 1), received)
+					sendRequest(client, dstURL, &hosts[rand.Intn(len(hosts))], atomic.AddUint64(&reqID, 1), received, bodyBuffer)
 				} else {
 					shouldFinishLock.RUnlock()
 					sendTraffic.Done()
