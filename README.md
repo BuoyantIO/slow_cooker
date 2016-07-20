@@ -31,13 +31,14 @@ How often to report to stdout.
 
 The url to send backend traffic to.
 
-`-reuse`
+`-noreuse`
 
-Reuse connections and reuse a single thread-safe http client.
+Do not reuse connections. (Connection reuse is the default.)
 
 `-compress`
 
 Ask for compressed responses.
+
 
 # Using multiple Host headers
 
@@ -97,7 +98,7 @@ slowdowns. If you're running multi-hour tests, bumping up the reporting
 interval to 60 seconds (`60s` or `1m`) is recommended.
 
 ```
-$timestamp $good/$bad/$failed requests $size kilobytes $interval [$p50 $p95 $p99 $p999]
+$timestamp $good/$bad/$failed requests $size kilobytes $interval $min [$p50 $p95 $p99 $p999] $max
 ```
 
 ## Tips and tricks

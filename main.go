@@ -22,6 +22,8 @@ import (
 	"github.com/codahale/hdrhistogram"
 )
 
+const MAX_INT64 = 9223372036854775807
+
 type MeasuredResponse struct {
 	sz      uint64
 	code    int
@@ -33,12 +35,12 @@ type MeasuredResponse struct {
 func newClient(
 	compress bool,
 	https bool,
-	reuse bool,
+	noreuse bool,
 	maxConn uint,
 ) *http.Client {
 	tr := http.Transport{
 		DisableCompression:  !compress,
-		DisableKeepAlives:   !reuse,
+		DisableKeepAlives:   noreuse,
 		MaxIdleConnsPerHost: int(maxConn),
 	}
 	if https {
@@ -111,7 +113,9 @@ func main() {
 	host := flag.String("host", "web", "value of Host header to set")
 	urldest := flag.String("url", "http://localhost:4140/", "Destination url")
 	interval := flag.Duration("interval", 10*time.Second, "reporting interval")
-	reuse := flag.Bool("reuse", false, "reuse connections")
+	// FIX: remove this flag before open source release.
+	reuse := flag.Bool("reuse", true, "reuse connections. (deprecated: no need to set)")
+	noreuse := flag.Bool("noreuse", false, "don't reuse connections")
 	compress := flag.Bool("compress", false, "use compression")
 
 	flag.Usage = func() {
@@ -129,6 +133,10 @@ func main() {
 		exUsage("concurrency must be at least 1")
 	}
 
+	if *reuse {
+		fmt.Printf("-reuse has been deprecated. Connection reuse is now the default\n")
+	}
+
 	hosts := strings.Split(*host, ",")
 
 	dstURL, err := url.Parse(*urldest)
@@ -142,6 +150,8 @@ func main() {
 	good := uint64(0)
 	bad := uint64(0)
 	failed := uint64(0)
+	min := int64(MAX_INT64)
+	max := int64(0)
 	// from 0 to 1 minute in nanoseconds
 	// FIX: verify that these buckets work correctly for our use case.
 	hist := hdrhistogram.New(0, 60000000000, 5)
@@ -150,7 +160,7 @@ func main() {
 	timeToWait := CalcTimeToWait(qps)
 
 	doTLS := dstURL.Scheme == "https"
-	client := newClient(*compress, doTLS, *reuse, *concurrency)
+	client := newClient(*compress, doTLS, *noreuse, *concurrency)
 	var sendTraffic sync.WaitGroup
 
 	for i := uint(0); i < *concurrency; i++ {
@@ -187,22 +197,31 @@ func main() {
 				os.Exit(1)
 			}()
 		case t := <-timeout:
+			// When all requests are failures, ensure we don't accidentally
+			// print out a monstrously huge number.
+			if min == MAX_INT64 {
+				min = 0
+			}
 			// Periodically print stats about the request load.
-			fmt.Printf("%s %6d/%1d/%1d requests %6d kilobytes %s [%3d %3d %3d %4d ]\n",
+			fmt.Printf("%s %6d/%1d/%1d requests %6d kilobytes %s %3d [%3d %3d %3d %4d ] %4d\n",
 				t.Format(time.RFC3339),
 				good,
 				bad,
 				failed,
 				(size / 1024),
 				interval,
+				min/1000000,
 				hist.ValueAtQuantile(50)/1000000,
 				hist.ValueAtQuantile(95)/1000000,
 				hist.ValueAtQuantile(99)/1000000,
-				hist.ValueAtQuantile(999)/1000000)
+				hist.ValueAtQuantile(999)/1000000,
+				max/1000000)
 			count = 0
 			size = 0
 			good = 0
 			bad = 0
+			min = MAX_INT64
+			max = 0
 			failed = 0
 			hist.Reset()
 			timeout = time.After(*interval)
@@ -218,6 +237,15 @@ func main() {
 				} else {
 					bad++
 				}
+
+				if managedResp.latency < min {
+					min = managedResp.latency
+				}
+
+				if managedResp.latency > max {
+					max = managedResp.latency
+				}
+
 				hist.RecordValue(managedResp.latency)
 			}
 		}

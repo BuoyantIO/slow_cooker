@@ -4,9 +4,12 @@ All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
+### Added
+- We now output min and max latency numbers bracketing the latency percentiles. (Fixes #13)
 ### Changed
 - Output now shows good/bad/failed requests
 - Improved qps calculation when fractional milliseconds are involved. (Fixed #5)
+- -reuse is now on by default. If you want to turn reuse off, use -noreuse (Fixes #11)
 
 ### Added
 - You can now pass a CSV of Host headers and it will fairly split traffic with each Host header.
