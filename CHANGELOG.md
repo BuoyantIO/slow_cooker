@@ -3,7 +3,7 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## [0.7.0] - 2016-07-21
 ### Added
 - We now output min and max latency numbers bracketing the latency percentiles. (Fixes #13)
 ### Changed
