@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -22,8 +23,8 @@ import (
 	"github.com/codahale/hdrhistogram"
 )
 
-const MAX_INT64 = 9223372036854775807
-
+// MeasuredResponse holds metadata about the response
+// we receive from the server under test.
 type MeasuredResponse struct {
 	sz      uint64
 	code    int
@@ -60,7 +61,7 @@ func sendRequest(
 	req, err := http.NewRequest("GET", url.String(), nil)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
-		fmt.Fprintln(os.Stderr, "\n")
+		fmt.Fprintf(os.Stderr, "\n")
 	}
 	req.Host = *host
 	req.Header.Add("Sc-Req-Id", strconv.FormatUint(reqID, 10))
@@ -89,8 +90,7 @@ func exUsage(msg string) {
 	os.Exit(64)
 }
 
-// To achieve a target qps, we need to wait this many Nanoseconds
-// between actions.
+// CalcTimeToWait calculates how many Nanoseconds to wait between actions.
 func CalcTimeToWait(qps *int) time.Duration {
 	return time.Duration(int(time.Second) / *qps)
 }
@@ -141,7 +141,7 @@ func main() {
 
 	dstURL, err := url.Parse(*urldest)
 	if err != nil {
-		exUsage(fmt.Sprintf("invalid URL: '%s': %s\n", urldest, err.Error()))
+		exUsage(fmt.Sprintf("invalid URL: '%s': %s\n", *urldest, err.Error()))
 	}
 
 	// Repsonse tracking metadata.
@@ -150,7 +150,7 @@ func main() {
 	good := uint64(0)
 	bad := uint64(0)
 	failed := uint64(0)
-	min := int64(MAX_INT64)
+	min := int64(math.MaxInt64)
 	max := int64(0)
 	// from 0 to 1 minute in nanoseconds
 	// FIX: verify that these buckets work correctly for our use case.
@@ -199,7 +199,7 @@ func main() {
 		case t := <-timeout:
 			// When all requests are failures, ensure we don't accidentally
 			// print out a monstrously huge number.
-			if min == MAX_INT64 {
+			if min == math.MaxInt64 {
 				min = 0
 			}
 			// Periodically print stats about the request load.
@@ -220,7 +220,7 @@ func main() {
 			size = 0
 			good = 0
 			bad = 0
-			min = MAX_INT64
+			min = math.MaxInt64
 			max = 0
 			failed = 0
 			hist.Reset()
