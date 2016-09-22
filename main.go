@@ -113,8 +113,6 @@ func main() {
 	host := flag.String("host", "web", "value of Host header to set")
 	urldest := flag.String("url", "http://localhost:4140/", "Destination url")
 	interval := flag.Duration("interval", 10*time.Second, "reporting interval")
-	// FIX: remove this flag before open source release.
-	reuse := flag.Bool("reuse", true, "reuse connections. (deprecated: no need to set)")
 	noreuse := flag.Bool("noreuse", false, "don't reuse connections")
 	compress := flag.Bool("compress", false, "use compression")
 
@@ -131,10 +129,6 @@ func main() {
 
 	if *concurrency < 1 {
 		exUsage("concurrency must be at least 1")
-	}
-
-	if *reuse {
-		fmt.Printf("-reuse has been deprecated. Connection reuse is now the default\n")
 	}
 
 	hosts := strings.Split(*host, ",")
