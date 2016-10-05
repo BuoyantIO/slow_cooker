@@ -37,12 +37,12 @@ func newClient(
 	compress bool,
 	https bool,
 	noreuse bool,
-	maxConn uint,
+	maxConn int,
 ) *http.Client {
 	tr := http.Transport{
 		DisableCompression:  !compress,
 		DisableKeepAlives:   noreuse,
-		MaxIdleConnsPerHost: int(maxConn),
+		MaxIdleConnsPerHost: maxConn,
 	}
 	if https {
 		tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
@@ -109,7 +109,7 @@ func finishSendingTraffic() {
 
 func main() {
 	qps := flag.Int("qps", 1, "QPS to send to backends per request thread")
-	concurrency := flag.Uint("concurrency", 1, "Number of request threads")
+	concurrency := flag.Int("concurrency", 1, "Number of request threads")
 	host := flag.String("host", "web", "value of Host header to set")
 	urldest := flag.String("url", "http://localhost:4140/", "Destination url")
 	interval := flag.Duration("interval", 10*time.Second, "reporting interval")
@@ -152,12 +152,14 @@ func main() {
 	received := make(chan *MeasuredResponse)
 	timeout := time.After(*interval)
 	timeToWait := CalcTimeToWait(qps)
+	var totalTrafficTarget int
+	totalTrafficTarget = *qps * *concurrency * int(interval.Seconds())
 
 	doTLS := dstURL.Scheme == "https"
 	client := newClient(*compress, doTLS, *noreuse, *concurrency)
 	var sendTraffic sync.WaitGroup
 
-	for i := uint(0); i < *concurrency; i++ {
+	for i := 0; i < *concurrency; i++ {
 		ticker := time.NewTicker(timeToWait)
 		go func() {
 			// For each goroutine we want to reuse a buffer for performance reasons.
@@ -197,12 +199,15 @@ func main() {
 				min = 0
 			}
 			// Periodically print stats about the request load.
-			fmt.Printf("%s %6d/%1d/%1d requests %6d kilobytes %s %3d [%3d %3d %3d %4d ] %4d\n",
+			percentAchieved := int(math.Min(((float64(good) /
+				float64(totalTrafficTarget)) * 100), 100))
+			fmt.Printf("%s %6d/%1d/%1d %d %3d%% %s %3d [%3d %3d %3d %4d ] %4d\n",
 				t.Format(time.RFC3339),
 				good,
 				bad,
 				failed,
-				(size / 1024),
+				totalTrafficTarget,
+				percentAchieved,
 				interval,
 				min/1000000,
 				hist.ValueAtQuantile(50)/1000000,

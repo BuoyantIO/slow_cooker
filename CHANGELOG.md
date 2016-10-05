@@ -5,8 +5,11 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 ### Added
+- Added percent success to the output.
+- Added target traffic per interval to the output.
 ### Changed
 - Removed `-reuse` deprecation warning.
+- Removed bytes received from the output.
 
 ## [0.7.0] - 2016-07-21
 ### Added
