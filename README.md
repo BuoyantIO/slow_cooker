@@ -9,11 +9,11 @@ periodic reports of qps and latency.
 
 # Running it
 
-`go build; ./slow_cooker`
+`go build; ./slow_cooker <url>`
 
 or:
 
-`go run main.go`
+`go run main.go <url>`
 
 # Flags
 
@@ -26,18 +26,13 @@ Queries per second to send to a backend.
 How many goroutines to run, each at the specified qps level. Measure
 total qps as `qps * concurrency`.
 
-`-host web`
+`-host <string>`
 
-Set a `Host:` header. By default, we'll send `Host: web` for
-Buoyant-specific reasons.
+Set a `Host:` header.
 
 `-interval 10s`
 
 How often to report to stdout.
-
-`-url http://localhost:4140/`
-
-The url to send backend traffic to.
 
 `-noreuse`
 
@@ -47,19 +42,19 @@ Do not reuse connections. (Connection reuse is the default.)
 
 Ask for compressed responses.
 
-
 # Using multiple Host headers
 
 If you want to send multiple Host headers to a backend, pass a comma separated
-list to the host flag and/or run multiple slow_cooker processes.
+list to the host flag. Each request will be selected randomly from the list.
 
-```$ slow_cooker -host web_a,web_b -qps 200```
+For more complex distributions, you can run multiple slow_cooker processes:
 
-```$ slow_cooker -host web_b -qps 100```
+```$ slow_cooker http://localhost:4140/ -host web_a,web_b -qps 200```
 
-These commands will send 300 qps total to the default URL
-(`http://localhost:4140/`) with 100 qps sent with `Host: web_a` and
-200 qps sent with `Host: web_b`
+```$ slow_cooker http://localhost:4140/ -host web_b -qps 100```
+
+This example will send 300 qps total to `http://localhost:4140/` with 100 qps
+sent with `Host: web_a` and 200 qps sent with `Host: web_b`
 
 # TLS use
 
