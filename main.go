@@ -43,6 +43,7 @@ func newClient(
 		DisableCompression:  !compress,
 		DisableKeepAlives:   noreuse,
 		MaxIdleConnsPerHost: int(maxConn),
+		Proxy:               http.ProxyFromEnvironment,
 	}
 	if https {
 		tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
