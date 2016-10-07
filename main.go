@@ -194,9 +194,16 @@ func main() {
 	cleanup := make(chan os.Signal)
 	signal.Notify(cleanup, syscall.SIGINT)
 
+	intLen := len(fmt.Sprintf("%s", *interval))
+	padding := strings.Repeat(" ", intLen)
+
+	fmt.Printf("# sending %d req/s at concurrency=%d to %s ...\n", *qps, *concurrency, dstURL)
+	fmt.Printf("#                           good/b/f         size %s  min [p50 p95 p99  p999]  max (ms)\n", padding)
+
 	for {
 		select {
 		case <-cleanup:
+			fmt.Println("# terminating...")
 			finishSendingTraffic()
 			go func() {
 				// Don't Wait() in the event loop or else we'll block the workers
@@ -211,7 +218,7 @@ func main() {
 				min = 0
 			}
 			// Periodically print stats about the request load.
-			fmt.Printf("%s %6d/%1d/%1d requests %6d kilobytes %s %3d [%3d %3d %3d %4d ] %4d\n",
+			fmt.Printf("%s %6d/%1d/%1d reqs %6dKb %s %3d [%3d %3d %3d %4d ] %4d\n",
 				t.Format(time.RFC3339),
 				good,
 				bad,
