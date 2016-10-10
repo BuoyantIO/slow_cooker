@@ -7,6 +7,14 @@ a service with a predictable load and concurrency level for a long
 period of time. Instead of getting a report at the end, we wanted
 periodic reports of qps and latency.
 
+# Running it
+
+`go build; ./slow_cooker`
+
+or:
+
+`go run main.go`
+
 # Flags
 
 `-qps 1`
