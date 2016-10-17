@@ -47,6 +47,14 @@ Do not reuse connections. (Connection reuse is the default.)
 
 Ask for compressed responses.
 
+`-noLatencySummary`
+
+Don't print the latency histogram report at the end.
+
+`-reportLatenciesCSV <filename>`
+
+Writes a CSV file of latencies. Format is: milliseconds to number of
+requests that fall into that bucket.
 
 # Using multiple Host headers
 

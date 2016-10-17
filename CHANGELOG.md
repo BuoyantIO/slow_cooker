@@ -7,6 +7,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
 - Added percent success to the output.
 - Added target traffic per interval to the output.
+- Optional latency histogram report to stdout.
+- Optional full latency CSV report to a given filename.
 ### Changed
 - Removed `-reuse` deprecation warning.
 - Removed bytes received from the output.

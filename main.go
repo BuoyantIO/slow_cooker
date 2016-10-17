@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"math"
 	"math/rand"
 	"net/http"
@@ -20,8 +21,12 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/buoyantio/slow_cooker/hdrreport"
 	"github.com/codahale/hdrhistogram"
 )
+
+// 1 day in milliseconds
+const DAY_IN_MS int64 = 24 * 60 * 60 * 1000000
 
 // MeasuredResponse holds metadata about the response
 // we receive from the server under test.
@@ -76,7 +81,12 @@ func sendRequest(
 		if sz, err := io.CopyBuffer(ioutil.Discard, response.Body, bodyBuffer); err == nil {
 			response.Body.Close()
 			elapsed := time.Since(start)
-			received <- &MeasuredResponse{uint64(sz), response.StatusCode, elapsed.Nanoseconds(), false, nil}
+			received <- &MeasuredResponse{
+				uint64(sz),
+				response.StatusCode,
+				elapsed.Nanoseconds() / 1000000,
+				false,
+				nil}
 		} else {
 			received <- &MeasuredResponse{0, 0, 0, false, err}
 		}
@@ -115,6 +125,9 @@ func main() {
 	interval := flag.Duration("interval", 10*time.Second, "reporting interval")
 	noreuse := flag.Bool("noreuse", false, "don't reuse connections")
 	compress := flag.Bool("compress", false, "use compression")
+	noLatencySummary := flag.Bool("noLatencySummary", false, "suppress the final latency summary")
+	reportLatenciesCSV := flag.String("reportLatenciesCSV", "",
+		"filename to output hdrhistogram latencies in CSV")
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: %s [flags]\n", path.Base(os.Args[0]))
@@ -146,9 +159,9 @@ func main() {
 	failed := uint64(0)
 	min := int64(math.MaxInt64)
 	max := int64(0)
-	// from 0 to 1 minute in nanoseconds
-	// FIX: verify that these buckets work correctly for our use case.
-	hist := hdrhistogram.New(0, 60000000000, 5)
+
+	hist := hdrhistogram.New(0, DAY_IN_MS, 3)
+	globalHist := hdrhistogram.New(0, DAY_IN_MS, 3)
 	received := make(chan *MeasuredResponse)
 	timeout := time.After(*interval)
 	timeToWait := CalcTimeToWait(qps)
@@ -186,6 +199,15 @@ func main() {
 		select {
 		case <-cleanup:
 			finishSendingTraffic()
+			if !*noLatencySummary {
+				hdrreport.PrintLatencySummary(globalHist)
+			}
+			if *reportLatenciesCSV != "" {
+				err := hdrreport.WriteReportCSV(reportLatenciesCSV, globalHist)
+				if err != nil {
+					log.Panicf("Unable to write Latency CSV file: %v\n", err)
+				}
+			}
 			go func() {
 				// Don't Wait() in the event loop or else we'll block the workers
 				// from draining.
@@ -209,12 +231,12 @@ func main() {
 				totalTrafficTarget,
 				percentAchieved,
 				interval,
-				min/1000000,
-				hist.ValueAtQuantile(50)/1000000,
-				hist.ValueAtQuantile(95)/1000000,
-				hist.ValueAtQuantile(99)/1000000,
-				hist.ValueAtQuantile(999)/1000000,
-				max/1000000)
+				min,
+				hist.ValueAtQuantile(50),
+				hist.ValueAtQuantile(95),
+				hist.ValueAtQuantile(99),
+				hist.ValueAtQuantile(999),
+				max)
 			count = 0
 			size = 0
 			good = 0
@@ -246,6 +268,7 @@ func main() {
 				}
 
 				hist.RecordValue(managedResp.latency)
+				globalHist.RecordValue(managedResp.latency)
 			}
 		}
 	}
