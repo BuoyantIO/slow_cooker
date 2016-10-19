@@ -9,9 +9,11 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Added target traffic per interval to the output.
 - Optional latency histogram report to stdout.
 - Optional full latency CSV report to a given filename.
+- Respect `http_proxy` environment variable.
 ### Changed
 - Removed `-reuse` deprecation warning.
 - Removed bytes received from the output.
+- Removed `-url`, instead use the first argument from ARGV.
 
 ## [0.7.0] - 2016-07-21
 ### Added
