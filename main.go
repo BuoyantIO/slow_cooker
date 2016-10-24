@@ -48,6 +48,7 @@ func newClient(
 		DisableCompression:  !compress,
 		DisableKeepAlives:   noreuse,
 		MaxIdleConnsPerHost: maxConn,
+		Proxy:               http.ProxyFromEnvironment,
 	}
 	if https {
 		tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
@@ -58,7 +59,7 @@ func newClient(
 func sendRequest(
 	client *http.Client,
 	url *url.URL,
-	host *string,
+	host string,
 	reqID uint64,
 	received chan *MeasuredResponse,
 	bodyBuffer []byte,
@@ -68,7 +69,9 @@ func sendRequest(
 		fmt.Fprintln(os.Stderr, err.Error())
 		fmt.Fprintf(os.Stderr, "\n")
 	}
-	req.Host = *host
+	if host != "" {
+		req.Host = host
+	}
 	req.Header.Add("Sc-Req-Id", strconv.FormatUint(reqID, 10))
 
 	// FIX: find a way to measure latency with the http client.
@@ -93,10 +96,9 @@ func sendRequest(
 	}
 }
 
-func exUsage(msg string) {
-	fmt.Fprintf(os.Stderr, "%s\n", msg)
-	fmt.Fprintf(os.Stderr, "Usage: %s [flags]\n", path.Base(os.Args[0]))
-	flag.PrintDefaults()
+func exUsage(msg string, args ...interface{}) {
+	fmt.Fprintln(os.Stderr, fmt.Sprintf(msg, args...))
+	fmt.Fprintln(os.Stderr, "Try --help for help.")
 	os.Exit(64)
 }
 
@@ -120,21 +122,36 @@ func finishSendingTraffic() {
 func main() {
 	qps := flag.Int("qps", 1, "QPS to send to backends per request thread")
 	concurrency := flag.Int("concurrency", 1, "Number of request threads")
-	host := flag.String("host", "web", "value of Host header to set")
-	urldest := flag.String("url", "http://localhost:4140/", "Destination url")
+	host := flag.String("host", "", "value of Host header to set")
 	interval := flag.Duration("interval", 10*time.Second, "reporting interval")
 	noreuse := flag.Bool("noreuse", false, "don't reuse connections")
 	compress := flag.Bool("compress", false, "use compression")
 	noLatencySummary := flag.Bool("noLatencySummary", false, "suppress the final latency summary")
 	reportLatenciesCSV := flag.String("reportLatenciesCSV", "",
 		"filename to output hdrhistogram latencies in CSV")
+	help := flag.Bool("help", false, "show help message")
 
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: %s [flags]\n", path.Base(os.Args[0]))
+		fmt.Fprintf(os.Stderr, "Usage: %s <url> [flags]\n", path.Base(os.Args[0]))
 		flag.PrintDefaults()
 	}
 
 	flag.Parse()
+
+	if *help {
+		flag.Usage()
+		os.Exit(64)
+	}
+
+	if flag.NArg() != 1 {
+		exUsage("Expecting one argument: the target url to test, e.g. http://localhost:4140/")
+	}
+
+	urldest := flag.Arg(0)
+	dstURL, err := url.Parse(urldest)
+	if err != nil {
+		exUsage("invalid URL: '%s': %s\n", urldest, err.Error())
+	}
 
 	if *qps < 1 {
 		exUsage("qps must be at least 1")
@@ -145,11 +162,6 @@ func main() {
 	}
 
 	hosts := strings.Split(*host, ",")
-
-	dstURL, err := url.Parse(*urldest)
-	if err != nil {
-		exUsage(fmt.Sprintf("invalid URL: '%s': %s\n", *urldest, err.Error()))
-	}
 
 	// Repsonse tracking metadata.
 	count := uint64(0)
@@ -182,7 +194,7 @@ func main() {
 				shouldFinishLock.RLock()
 				if !shouldFinish {
 					shouldFinishLock.RUnlock()
-					sendRequest(client, dstURL, &hosts[rand.Intn(len(hosts))], atomic.AddUint64(&reqID, 1), received, bodyBuffer)
+					sendRequest(client, dstURL, hosts[rand.Intn(len(hosts))], atomic.AddUint64(&reqID, 1), received, bodyBuffer)
 				} else {
 					shouldFinishLock.RUnlock()
 					sendTraffic.Done()
