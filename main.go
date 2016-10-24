@@ -22,6 +22,8 @@ import (
 	"time"
 
 	"github.com/buoyantio/slow_cooker/hdrreport"
+	"github.com/buoyantio/slow_cooker/ring"
+	"github.com/buoyantio/slow_cooker/window"
 	"github.com/codahale/hdrhistogram"
 )
 
@@ -174,6 +176,7 @@ func main() {
 
 	hist := hdrhistogram.New(0, DAY_IN_MS, 3)
 	globalHist := hdrhistogram.New(0, DAY_IN_MS, 3)
+	latencyHistory := ring.New(5)
 	received := make(chan *MeasuredResponse)
 	timeout := time.After(*interval)
 	timeToWait := CalcTimeToWait(qps)
@@ -235,7 +238,16 @@ func main() {
 			// Periodically print stats about the request load.
 			percentAchieved := int(math.Min(((float64(good) /
 				float64(totalTrafficTarget)) * 100), 100))
-			fmt.Printf("%s %6d/%1d/%1d %d %3d%% %s %3d [%3d %3d %3d %4d ] %4d\n",
+
+			lastP99 := int(hist.ValueAtQuantile(99))
+			// We want the change indicator to be based on
+			// how far away the current value is from what
+			// we've seen historically. This is why we call
+			// CalculateChangeIndicator() first and then Push()
+			changeIndicator := window.CalculateChangeIndicator(latencyHistory.Items, lastP99)
+			latencyHistory.Push(lastP99)
+
+			fmt.Printf("%s %6d/%1d/%1d %d %3d%% %s %3d [%3d %3d %3d %4d ] %4d %s\n",
 				t.Format(time.RFC3339),
 				good,
 				bad,
@@ -248,7 +260,9 @@ func main() {
 				hist.ValueAtQuantile(95),
 				hist.ValueAtQuantile(99),
 				hist.ValueAtQuantile(999),
-				max)
+				max,
+				changeIndicator)
+
 			count = 0
 			size = 0
 			good = 0
