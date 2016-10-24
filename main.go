@@ -10,6 +10,7 @@ import (
 	"math"
 	"math/rand"
 	"net/http"
+	"net/http/httptrace"
 	"net/url"
 	"os"
 	"os/signal"
@@ -74,8 +75,16 @@ func sendRequest(
 	}
 	req.Header.Add("Sc-Req-Id", strconv.FormatUint(reqID, 10))
 
-	// FIX: find a way to measure latency with the http client.
+	var elapsed time.Duration
 	start := time.Now()
+
+	trace := &httptrace.ClientTrace{
+		GotFirstResponseByte: func() {
+			elapsed = time.Since(start)
+		},
+	}
+
+	req = req.WithContext(httptrace.WithClientTrace(req.Context(), trace))
 	response, err := client.Do(req)
 
 	if err != nil {
@@ -83,7 +92,6 @@ func sendRequest(
 	} else {
 		if sz, err := io.CopyBuffer(ioutil.Discard, response.Body, bodyBuffer); err == nil {
 			response.Body.Close()
-			elapsed := time.Since(start)
 			received <- &MeasuredResponse{
 				uint64(sz),
 				response.StatusCode,
@@ -130,6 +138,7 @@ func main() {
 	reportLatenciesCSV := flag.String("reportLatenciesCSV", "",
 		"filename to output hdrhistogram latencies in CSV")
 	help := flag.Bool("help", false, "show help message")
+	totalRequests := flag.Uint64("totalRequests", 0, "total number of requests to send before exiting")
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: %s <url> [flags]\n", path.Base(os.Args[0]))
@@ -204,11 +213,15 @@ func main() {
 		}()
 	}
 
-	cleanup := make(chan os.Signal)
-	signal.Notify(cleanup, syscall.SIGINT)
+	cleanup := make(chan bool, 2)
+	interrupted := make(chan os.Signal, 2)
+	signal.Notify(interrupted, syscall.SIGINT)
 
 	for {
 		select {
+		// If we get a SIGINT, then start the shutdown process.
+		case <-interrupted:
+			cleanup <- true
 		case <-cleanup:
 			finishSendingTraffic()
 			if !*noLatencySummary {
@@ -224,7 +237,7 @@ func main() {
 				// Don't Wait() in the event loop or else we'll block the workers
 				// from draining.
 				sendTraffic.Wait()
-				os.Exit(1)
+				os.Exit(0)
 			}()
 		case t := <-timeout:
 			// When all requests are failures, ensure we don't accidentally
@@ -258,6 +271,10 @@ func main() {
 			failed = 0
 			hist.Reset()
 			timeout = time.After(*interval)
+
+			if *totalRequests != 0 && reqID > *totalRequests {
+				cleanup <- true
+			}
 		case managedResp := <-received:
 			count++
 			if managedResp.err != nil {

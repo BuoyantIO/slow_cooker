@@ -51,6 +51,10 @@ Don't print the latency histogram report at the end.
 Writes a CSV file of latencies. Format is: milliseconds to number of
 requests that fall into that bucket.
 
+`-totalRequests <int>`
+
+Exit after sending this many requests.
+
 # Using multiple Host headers
 
 If you want to send multiple Host headers to a backend, pass a comma separated
@@ -135,6 +139,17 @@ will show all bad (status code >= 500) requests.
 
 will show all failed (connection refused, dropped, etc) requests.
 
+### use the latency CSV output to see how your system performs
+
+Use `-totalRequests` and `-reportLatenciesCSV` to see how your system
+latency grows as a function of traffic levels.
+
+### use -concurrency to improve throughput
+
+If you're not hitting the throughput numbers you expect, try
+increasing `-concurrency` so your requests are issued over more
+goroutines. Each goroutine issues requests serially, waiting for a
+response before issuing the next request.
+
 If you have scripts that process slow_cooker logs, feel free to add
 them to this project!
-
