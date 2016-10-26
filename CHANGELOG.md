@@ -8,9 +8,12 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Added percent success to the output.
 - Added target traffic per interval to the output.
 - Optional latency histogram report to stdout.
+- Adds a change indicator to the end of the line showing how many
+  orders of magnitude this line's p99 is over the previous 5.
 - Optional full latency CSV report to a given filename.
 - Respect `http_proxy` environment variable.
 ### Changed
+- We no longer generate the i386 linux binaries for release.
 - Removed `-reuse` deprecation warning.
 - Removed bytes received from the output.
 - Removed `-url`, instead use the first argument from ARGV.
