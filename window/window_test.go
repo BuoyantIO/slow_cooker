@@ -33,10 +33,14 @@ func (*WindowTestSuite) TestCalculateChangeIndicator(c *C) {
 	c.Assert(window.CalculateChangeIndicator(data, 1000), Equals, "++")
 	c.Assert(window.CalculateChangeIndicator(data, 100), Equals, "+")
 	c.Assert(window.CalculateChangeIndicator(data, 10), Equals, "")
+	c.Assert(window.CalculateChangeIndicator(data, 0), Equals, "-")
 
 	data = []int{1000000, 1000000, 1000000, 1000000}
 	c.Assert(window.CalculateChangeIndicator(data, 1000000), Equals, "")
 	c.Assert(window.CalculateChangeIndicator(data, 100000), Equals, "-")
 	c.Assert(window.CalculateChangeIndicator(data, 10000), Equals, "--")
 	c.Assert(window.CalculateChangeIndicator(data, 1000), Equals, "---")
+
+	data = []int{0, 0, 0, 0, 0}
+	c.Assert(window.CalculateChangeIndicator(data, 0), Equals, "")
 }
