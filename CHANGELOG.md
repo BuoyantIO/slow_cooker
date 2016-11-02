@@ -12,11 +12,14 @@ This project adheres to [Semantic Versioning](http://semver.org/).
   orders of magnitude this line's p99 is over the previous 5.
 - Optional full latency CSV report to a given filename.
 - Respect `http_proxy` environment variable.
+- Added `-totalRequests` flag for exiting after the given number of requests are issued.
 ### Changed
 - We no longer generate the i386 linux binaries for release.
 - Removed `-reuse` deprecation warning.
 - Removed bytes received from the output.
 - Removed `-url`, instead use the first argument from ARGV.
+- Use the new `/net/http/httptrace` package and measure latency as time to first byte.
+- No longer exit with an error code of 1 after cleanup
 
 ## [0.7.0] - 2016-07-21
 ### Added
