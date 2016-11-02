@@ -1,5 +1,9 @@
 package window
 
+import (
+	"math"
+)
+
 // Returns the mean of a slice of int64.
 func Mean(data []int) int {
 	sum := 0
@@ -27,31 +31,43 @@ func Mean(data []int) int {
 //
 // Otherwise we return no change indicator.
 func CalculateChangeIndicator(data []int, latest int) string {
-	mad := Mean(data)
+	mean := Mean(data)
 
 	if len(data) > 0 {
-		if latest >= (mad * 1000) {
-			return "+++"
+		// Log10 doesn't play well with 0 so we do some
+		// special casing.
+		if mean == 0 && latest == 0 {
+			return ""
 		}
 
-		if latest >= (mad * 100) {
-			return "++"
-		}
-
-		if latest >= (mad * 10) {
+		if mean == 0 && latest > 0 {
 			return "+"
 		}
-
-		if latest <= (mad / 1000) {
-			return "---"
-		}
-
-		if latest <= (mad / 100) {
-			return "--"
-		}
-
-		if latest <= (mad / 10) {
+		if latest == 0 && mean > 0 {
 			return "-"
+		}
+
+		diff := int(math.Log10(float64(latest)) - math.Log10(float64(mean)))
+
+		// Keep diff between 3 and -3
+		diff = int(math.Min(float64(diff), 3))
+		diff = int(math.Max(float64(diff), -3))
+
+		switch diff {
+		case 1:
+			return "+"
+		case 2:
+			return "++"
+		case 3:
+			return "+++"
+		case -1:
+			return "-"
+		case -2:
+			return "--"
+		case -3:
+			return "---"
+		default:
+			return ""
 		}
 	}
 
