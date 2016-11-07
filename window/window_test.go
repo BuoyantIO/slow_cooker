@@ -1,4 +1,4 @@
-package window_test
+package window
 
 import (
 	"github.com/buoyantio/slow_cooker/window"

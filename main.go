@@ -28,8 +28,8 @@ import (
 	"github.com/codahale/hdrhistogram"
 )
 
-// 1 day in milliseconds
-const DAY_IN_MS int64 = 24 * 60 * 60 * 1000000
+// DayInMs 1 day in milliseconds
+const DayInMs int64 = 24 * 60 * 60 * 1000000
 
 // MeasuredResponse holds metadata about the response
 // we receive from the server under test.
@@ -122,7 +122,7 @@ var reqID = uint64(0)
 var shouldFinish = false
 var shouldFinishLock sync.RWMutex
 
-// Signals the system to stop sending traffic and clean up after itself.
+// finishSendingTraffic signals the system to stop sending traffic and clean up after itself.
 func finishSendingTraffic() {
 	shouldFinishLock.Lock()
 	shouldFinish = true
@@ -183,8 +183,8 @@ func main() {
 	min := int64(math.MaxInt64)
 	max := int64(0)
 
-	hist := hdrhistogram.New(0, DAY_IN_MS, 3)
-	globalHist := hdrhistogram.New(0, DAY_IN_MS, 3)
+	hist := hdrhistogram.New(0, DayInMs, 3)
+	globalHist := hdrhistogram.New(0, DayInMs, 3)
 	latencyHistory := ring.New(5)
 	received := make(chan *MeasuredResponse)
 	timeout := time.After(*interval)

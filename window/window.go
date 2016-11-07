@@ -4,7 +4,7 @@ import (
 	"math"
 )
 
-// Returns the mean of a slice of int64.
+// Mean returns the mean of a slice of int64.
 func Mean(data []int) int {
 	sum := 0
 
@@ -15,13 +15,13 @@ func Mean(data []int) int {
 	count := len(data)
 	if count > 0 {
 		return sum / count
-	} else {
-		return 0
 	}
+	return 0
+
 }
 
-// Given a window of recent latencies, determine if a Change
-// Indicator should be generated.
+// CalculateChangeIndicator determines if a Change
+// Indicator should be generated from a window of recent latencies.
 //
 // For each 10x over the mean the latest item is, we add a single plus
 // sign up to 3.

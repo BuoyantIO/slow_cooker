@@ -1,4 +1,4 @@
-package ring_test
+package ring
 
 import (
 	"github.com/buoyantio/slow_cooker/ring"
