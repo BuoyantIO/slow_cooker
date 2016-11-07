@@ -9,7 +9,7 @@
       "network": "BRIDGE"
     }
   },
-  "cmd": "/go/bin/slow_cooker -qps 100 -concurrency 10 -url http://$HOST:4140",
+  "cmd": "/go/bin/slow_cooker -qps 100 -concurrency 10 http://$HOST:4140",
   "cpus": 1.0,
   "mem": 256.0,
   "uris": [
