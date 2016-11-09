@@ -13,6 +13,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Optional full latency CSV report to a given filename.
 - Respect `http_proxy` environment variable.
 - Added `-totalRequests` flag for exiting after the given number of requests are issued.
+
 ### Changed
 - We no longer generate the i386 linux binaries for release.
 - Removed `-reuse` deprecation warning.
@@ -26,6 +27,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - We now output min and max latency numbers bracketing the latency percentiles. (Fixes #13)
 - You can now pass a CSV of Host headers and it will fairly split traffic with each Host header.
 - Each request has a header called Sc-Req-Id with a unique numeric value to help debug proxy interactions.
+
 ### Changed
 - Output now shows good/bad/failed requests
 - Improved qps calculation when fractional milliseconds are involved. (Fixed #5)
