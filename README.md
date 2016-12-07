@@ -17,11 +17,11 @@ or:
 
 # Flags
 
-`-qps 1`
+`-qps <int>`
 
 Queries per second to send to a backend.
 
-`-concurrency 1`
+`-concurrency <int>`
 
 How many goroutines to run, each at the specified qps level. Measure
 total qps as `qps * concurrency`.
@@ -62,23 +62,23 @@ list to the host flag. Each request will be selected randomly from the list.
 
 For more complex distributions, you can run multiple slow_cooker processes:
 
-```$ slow_cooker http://localhost:4140/ -host web_a,web_b -qps 200```
+```$ slow_cooker -host web_a,web_b -qps 200 http://localhost:4140```
 
-```$ slow_cooker http://localhost:4140/ -host web_b -qps 100```
+```$ slow_cooker -host web_b -qps 100 http://localhost:4140```
 
 This example will send 300 qps total to `http://localhost:4140/` with 100 qps
 sent with `Host: web_a` and 200 qps sent with `Host: web_b`
 
 # TLS use
 
-Pass in an https url with the `-url` flag and it'll use TLS.
+Pass in an https url and it'll use TLS automatically.
 
 _Warning_ We do not verify the certificate, we use `InsecureSkipVerify: true`
 
 # Example usage
 
 ```
-$ ./slow_cooker -qps 100 -concurrency 10
+$ ./slow_cooker -qps 100 -concurrency 10 http://slow_server
 
 2016-05-16T20:45:05Z   7102/0/0 10000 71% 10s 0 [ 12  26  37  91 ] 91
 2016-05-16T20:45:16Z   7120/0/0 10000 71% 10s 1 [ 11  27  37  53 ] 53
@@ -94,12 +94,16 @@ $ ./slow_cooker -qps 100 -concurrency 10
 2016-05-16T20:46:58Z   7232/0/0 10000 72% 10s 0 [ 11  26  35  63 ] 63
 ```
 
+In this example, we see that the server is too slow to keep up with
+our requested load. that slowness is noted via the throughput
+percentage.
+
 ## Docker usage
 
 ### Run
 
 ```bash
-docker run -it buoyantio/slow_cooker -url http://$(docker-machine ip default):4140 -qps 100 -concurrency 10
+docker run -it buoyantio/slow_cooker -qps 100 -concurrency 10 http://$(docker-machine ip default):4140
 ```
 
 ### Build your own
@@ -127,7 +131,9 @@ connection failure.
 
 Use `tee` to keep a logfile of slow_cooker results and `cut` to find bad or failed requests.
 
-`./slow_cooker_linux_amd64 -qps 5 -concurrency 20 -interval 10s -reuse | tee slow_cooker.log`
+```bash
+./slow_cooker_linux_amd64 -qps 5 -concurrency 20 -interval 10s -reuse http://localhost:4140 | tee slow_cooker.log
+```
 
 ### use cut to look at specific fields from your tee'd logfile
 
@@ -139,7 +145,14 @@ will show all bad (status code >= 500) requests.
 
 will show all failed (connection refused, dropped, etc) requests.
 
-### use the latency CSV output to see how your system performs
+### dig into the full latency report
+
+With the `-reportLatenciesCSV` flag, you can thoroughly inspect your
+service's latency instead of relying on pre-computed statistical
+summaries. We chose CSV to allow for easy integration with statistical
+environments like R and standard spreadsheet tools like Excel.
+
+### use the latency CSV output to see system performance changes
 
 Use `-totalRequests` and `-reportLatenciesCSV` to see how your system
 latency grows as a function of traffic levels.
