@@ -195,7 +195,14 @@ func main() {
 	doTLS := dstURL.Scheme == "https"
 	client := newClient(*compress, doTLS, *noreuse, *concurrency)
 	var sendTraffic sync.WaitGroup
+	// The time portion of the header can change due to timezone.
+	timeLen := len(time.Now().Format(time.RFC3339))
+	timePadding := strings.Repeat(" ", timeLen)
+	intLen := len(fmt.Sprintf("%s", *interval))
+	intPadding := strings.Repeat(" ", intLen-2)
 
+	fmt.Printf("# sending %d req/s with concurrency=%d to %s ...\n", (*qps * *concurrency), *concurrency, dstURL)
+	fmt.Printf("# %s good/b/f t   good%% %s min [p50 p95 p99  p999]  max change\n", timePadding, intPadding)
 	for i := 0; i < *concurrency; i++ {
 		ticker := time.NewTicker(timeToWait)
 		go func() {
