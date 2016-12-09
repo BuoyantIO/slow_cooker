@@ -3,7 +3,7 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
-## [Unreleased]
+## [1.0.0] - 2016-12-8
 ### Added
 - Added percent success to the output.
 - Added target traffic per interval to the output.
@@ -13,6 +13,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Optional full latency CSV report to a given filename.
 - Respect `http_proxy` environment variable.
 - Added `-totalRequests` flag for exiting after the given number of requests are issued.
+- Added a header line at the beginning of the test run.
 
 ### Changed
 - We no longer generate the i386 linux binaries for release.
