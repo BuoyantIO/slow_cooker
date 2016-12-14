@@ -61,13 +61,14 @@ func newClient(
 
 func sendRequest(
 	client *http.Client,
+	method string,
 	url *url.URL,
 	host string,
 	reqID uint64,
 	received chan *MeasuredResponse,
 	bodyBuffer []byte,
 ) {
-	req, err := http.NewRequest("GET", url.String(), nil)
+	req, err := http.NewRequest(method, url.String(), nil)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		fmt.Fprintf(os.Stderr, "\n")
@@ -133,6 +134,7 @@ func main() {
 	qps := flag.Int("qps", 1, "QPS to send to backends per request thread")
 	concurrency := flag.Int("concurrency", 1, "Number of request threads")
 	host := flag.String("host", "", "value of Host header to set")
+	method := flag.String("method", "GET", "HTTP method to use")
 	interval := flag.Duration("interval", 10*time.Second, "reporting interval")
 	noreuse := flag.Bool("noreuse", false, "don't reuse connections")
 	compress := flag.Bool("compress", false, "use compression")
@@ -201,7 +203,7 @@ func main() {
 	intLen := len(fmt.Sprintf("%s", *interval))
 	intPadding := strings.Repeat(" ", intLen-2)
 
-	fmt.Printf("# sending %d req/s with concurrency=%d to %s ...\n", (*qps * *concurrency), *concurrency, dstURL)
+	fmt.Printf("# sending %d %s req/s with concurrency=%d to %s ...\n", (*qps * *concurrency), *method, *concurrency, dstURL)
 	fmt.Printf("# %s good/b/f t   good%% %s min [p50 p95 p99  p999]  max change\n", timePadding, intPadding)
 	for i := 0; i < *concurrency; i++ {
 		ticker := time.NewTicker(timeToWait)
@@ -213,7 +215,7 @@ func main() {
 				shouldFinishLock.RLock()
 				if !shouldFinish {
 					shouldFinishLock.RUnlock()
-					sendRequest(client, dstURL, hosts[rand.Intn(len(hosts))], atomic.AddUint64(&reqID, 1), received, bodyBuffer)
+					sendRequest(client, *method, dstURL, hosts[rand.Intn(len(hosts))], atomic.AddUint64(&reqID, 1), received, bodyBuffer)
 				} else {
 					shouldFinishLock.RUnlock()
 					sendTraffic.Done()
