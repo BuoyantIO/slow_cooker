@@ -1,4 +1,5 @@
 slow_cooker = require('slow_cooker')
+json = require('json')
 
 local Built = {}
 
@@ -39,5 +40,6 @@ function string.random(len, charset)
 end
 
 function slow_cooker.generate_data(method, url, host, reqID)
-  return string.random(50)
+  local body = {method=method, url=url, host=host, request_id=reqID, random_string=string.random(50)}
+  return json.encode(body)
 end
