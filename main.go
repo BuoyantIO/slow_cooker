@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"crypto/tls"
 	"flag"
 	"fmt"
@@ -22,10 +23,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/buoyantio/slow_cooker/hdrreport"
-	"github.com/buoyantio/slow_cooker/ring"
-	"github.com/buoyantio/slow_cooker/window"
 	"github.com/codahale/hdrhistogram"
+	gopherJson "github.com/layeh/gopher-json"
+	"github.com/samdfonseca/slow_cooker/hdrreport"
+	"github.com/samdfonseca/slow_cooker/ring"
+	"github.com/samdfonseca/slow_cooker/scripting"
+	"github.com/samdfonseca/slow_cooker/window"
+	"github.com/yuin/gopher-lua"
 )
 
 // DayInMs 1 day in milliseconds
@@ -65,10 +69,11 @@ func sendRequest(
 	url *url.URL,
 	host string,
 	reqID uint64,
+	reqBodyBuffer []byte,
 	received chan *MeasuredResponse,
 	bodyBuffer []byte,
 ) {
-	req, err := http.NewRequest(method, url.String(), nil)
+	req, err := http.NewRequest(method, url.String(), bytes.NewBuffer(reqBodyBuffer))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		fmt.Fprintf(os.Stderr, "\n")
@@ -135,6 +140,7 @@ func main() {
 	concurrency := flag.Int("concurrency", 1, "Number of request threads")
 	host := flag.String("host", "", "value of Host header to set")
 	method := flag.String("method", "GET", "HTTP method to use")
+	dataGeneratorScript := flag.String("dataGeneratorScript", "", "filename of the lua script to generate dynamic request body data")
 	interval := flag.Duration("interval", 10*time.Second, "reporting interval")
 	noreuse := flag.Bool("noreuse", false, "don't reuse connections")
 	compress := flag.Bool("compress", false, "use compression")
@@ -172,6 +178,20 @@ func main() {
 
 	if *concurrency < 1 {
 		exUsage("concurrency must be at least 1")
+	}
+
+	dataGenerator := func(string, *url.URL, string, uint64) []byte {
+		return nil
+	}
+	if *dataGeneratorScript != "" {
+		dataGenerator = scripting.NewDataGenerator(
+			scripting.NewLStatePool(*dataGeneratorScript,
+				*concurrency,
+				map[string]func(*lua.LState) int{
+					"slow_cooker": scripting.NewModuleLoader(map[string]lua.LGFunction{}),
+					"json":        gopherJson.Loader,
+				}),
+		)
 	}
 
 	hosts := strings.Split(*host, ",")
@@ -214,8 +234,11 @@ func main() {
 			for _ = range ticker.C {
 				shouldFinishLock.RLock()
 				if !shouldFinish {
+					reqHost := hosts[rand.Intn(len(hosts))]
+					reqID := atomic.AddUint64(&reqID, 1)
+					reqBodyBuffer := dataGenerator(*method, dstURL, reqHost, reqID)
 					shouldFinishLock.RUnlock()
-					sendRequest(client, *method, dstURL, hosts[rand.Intn(len(hosts))], atomic.AddUint64(&reqID, 1), received, bodyBuffer)
+					sendRequest(client, *method, dstURL, reqHost, reqID, reqBodyBuffer, received, bodyBuffer)
 				} else {
 					shouldFinishLock.RUnlock()
 					sendTraffic.Done()
