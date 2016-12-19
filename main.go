@@ -24,12 +24,10 @@ import (
 	"time"
 
 	"github.com/codahale/hdrhistogram"
-	gopherJson "github.com/layeh/gopher-json"
-	"github.com/samdfonseca/slow_cooker/hdrreport"
-	"github.com/samdfonseca/slow_cooker/ring"
-	"github.com/samdfonseca/slow_cooker/scripting"
-	"github.com/samdfonseca/slow_cooker/window"
-	"github.com/yuin/gopher-lua"
+	"github.com/buoyantio/slow_cooker/hdrreport"
+	"github.com/buoyantio/slow_cooker/ring"
+	"github.com/buoyantio/slow_cooker/scripting"
+	"github.com/buoyantio/slow_cooker/window"
 )
 
 // DayInMs 1 day in milliseconds
@@ -210,10 +208,7 @@ func main() {
 		dataGenerator = scripting.NewDataGenerator(
 			scripting.NewLStatePool(*dataGeneratorScript,
 				*concurrency,
-				map[string]func(*lua.LState) int{
-					"slow_cooker": scripting.NewModuleLoader(map[string]lua.LGFunction{}),
-					"gopherJson":  gopherJson.Loader,
-				}),
+				scripting.DefaultModuleLoaders),
 		)
 	}
 
@@ -260,8 +255,8 @@ func main() {
 					reqID = atomic.AddUint64(&reqID, 1)
 					reqData := &scripting.LReqData{
 						Method: *method,
-						Url: dstURL.String(),
-						Host: hosts[rand.Intn(len(hosts))],
+						Url:    dstURL.String(),
+						Host:   hosts[rand.Intn(len(hosts))],
 					}
 					if err := dataGenerator(reqData, reqID); err != nil {
 						panic(err)

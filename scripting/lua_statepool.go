@@ -3,8 +3,14 @@ package scripting
 import (
 	"sync"
 
+	gopherJson "github.com/layeh/gopher-json"
 	"github.com/yuin/gopher-lua"
 )
+
+var DefaultModuleLoaders = map[string]func(*lua.LState) int{
+	"slow_cooker": NewModuleLoader(map[string]lua.LGFunction{}),
+	"gopherJson":  gopherJson.Loader,
+}
 
 // A very slightly modified version of the lStatePool from the gopher-lua readme
 // https://github.com/yuin/gopher-lua#the-lstate-pool-pattern
