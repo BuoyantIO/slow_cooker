@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"crypto/tls"
 	"flag"
 	"fmt"
@@ -65,11 +66,12 @@ func sendRequest(
 	url *url.URL,
 	host string,
 	headers headerSet,
+	requestData []byte,
 	reqID uint64,
 	received chan *MeasuredResponse,
 	bodyBuffer []byte,
 ) {
-	req, err := http.NewRequest(method, url.String(), nil)
+	req, err := http.NewRequest(method, url.String(), bytes.NewBuffer(requestData))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		fmt.Fprintf(os.Stderr, "\n")
@@ -151,6 +153,35 @@ func (h *headerSet) Set(s string) error {
 	return nil
 }
 
+func loadData(data string) []byte {
+	var file *os.File
+	var requestData []byte
+	var err error
+	if strings.HasPrefix(data, "@") {
+		path := data[1:]
+		if path == "-" {
+			file = os.Stdin
+		} else {
+			file, err = os.Open(path)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, err.Error())
+				os.Exit(1)
+			}
+			defer file.Close()
+		}
+
+		requestData, err = ioutil.ReadAll(file)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, err.Error())
+			os.Exit(1)
+		}
+	} else {
+		requestData = []byte(data)
+	}
+
+	return requestData
+}
+
 func main() {
 	qps := flag.Int("qps", 1, "QPS to send to backends per request thread")
 	concurrency := flag.Int("concurrency", 1, "Number of request threads")
@@ -166,6 +197,7 @@ func main() {
 	totalRequests := flag.Uint64("totalRequests", 0, "total number of requests to send before exiting")
 	headers := make(headerSet)
 	flag.Var(&headers, "header", "HTTP request header. (can be repeated.)")
+	data := flag.String("data", "", "HTTP request data")
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: %s <url> [flags]\n", path.Base(os.Args[0]))
@@ -198,6 +230,8 @@ func main() {
 	}
 
 	hosts := strings.Split(*host, ",")
+
+	requestData := loadData(*data)
 
 	// Repsonse tracking metadata.
 	count := uint64(0)
@@ -238,7 +272,7 @@ func main() {
 				shouldFinishLock.RLock()
 				if !shouldFinish {
 					shouldFinishLock.RUnlock()
-					sendRequest(client, *method, dstURL, hosts[rand.Intn(len(hosts))], headers, atomic.AddUint64(&reqID, 1), received, bodyBuffer)
+					sendRequest(client, *method, dstURL, hosts[rand.Intn(len(hosts))], headers, requestData, atomic.AddUint64(&reqID, 1), received, bodyBuffer)
 				} else {
 					shouldFinishLock.RUnlock()
 					sendTraffic.Done()
