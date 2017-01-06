@@ -64,6 +64,7 @@ func sendRequest(
 	method string,
 	url *url.URL,
 	host string,
+	headers headerSet,
 	reqID uint64,
 	received chan *MeasuredResponse,
 	bodyBuffer []byte,
@@ -77,6 +78,9 @@ func sendRequest(
 		req.Host = host
 	}
 	req.Header.Add("Sc-Req-Id", strconv.FormatUint(reqID, 10))
+	for k, v := range headers {
+		req.Header.Add(k, v)
+	}
 
 	var elapsed time.Duration
 	start := time.Now()
@@ -130,6 +134,23 @@ func finishSendingTraffic() {
 	shouldFinishLock.Unlock()
 }
 
+type headerSet map[string]string
+
+func (h *headerSet) String() string {
+	return ""
+}
+
+func (h *headerSet) Set(s string) error {
+	parts := strings.SplitN(s, ":", 2)
+	if len(parts) < 2 || len(parts[0]) == 0 {
+		return fmt.Errorf("Header invalid")
+	}
+	name := strings.TrimSpace(parts[0])
+	value := strings.TrimSpace(parts[1])
+	(*h)[name] = value
+	return nil
+}
+
 func main() {
 	qps := flag.Int("qps", 1, "QPS to send to backends per request thread")
 	concurrency := flag.Int("concurrency", 1, "Number of request threads")
@@ -143,6 +164,8 @@ func main() {
 		"filename to output hdrhistogram latencies in CSV")
 	help := flag.Bool("help", false, "show help message")
 	totalRequests := flag.Uint64("totalRequests", 0, "total number of requests to send before exiting")
+	headers := make(headerSet)
+	flag.Var(&headers, "header", "HTTP request header. (can be repeated.)")
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: %s <url> [flags]\n", path.Base(os.Args[0]))
@@ -215,7 +238,7 @@ func main() {
 				shouldFinishLock.RLock()
 				if !shouldFinish {
 					shouldFinishLock.RUnlock()
-					sendRequest(client, *method, dstURL, hosts[rand.Intn(len(hosts))], atomic.AddUint64(&reqID, 1), received, bodyBuffer)
+					sendRequest(client, *method, dstURL, hosts[rand.Intn(len(hosts))], headers, atomic.AddUint64(&reqID, 1), received, bodyBuffer)
 				} else {
 					shouldFinishLock.RUnlock()
 					sendTraffic.Done()
