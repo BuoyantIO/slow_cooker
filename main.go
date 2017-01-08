@@ -180,7 +180,7 @@ func main() {
 		exUsage("concurrency must be at least 1")
 	}
 
-	dataGenerator := func(string, *url.URL, string, uint64) []byte {
+	dataGenerator := func(*scripting.LReqData, uint64) error {
 		return nil
 	}
 	if *dataGeneratorScript != "" {
@@ -189,7 +189,7 @@ func main() {
 				*concurrency,
 				map[string]func(*lua.LState) int{
 					"slow_cooker": scripting.NewModuleLoader(map[string]lua.LGFunction{}),
-					"json":        gopherJson.Loader,
+					"gopherJson":  gopherJson.Loader,
 				}),
 		)
 	}
@@ -234,11 +234,17 @@ func main() {
 			for _ = range ticker.C {
 				shouldFinishLock.RLock()
 				if !shouldFinish {
-					reqHost := hosts[rand.Intn(len(hosts))]
-					reqID := atomic.AddUint64(&reqID, 1)
-					reqBodyBuffer := dataGenerator(*method, dstURL, reqHost, reqID)
+					reqID = atomic.AddUint64(&reqID, 1)
+					reqData := &scripting.LReqData{
+						Method: *method,
+						Url: dstURL.String(),
+						Host: hosts[rand.Intn(len(hosts))],
+					}
+					if err := dataGenerator(reqData, reqID); err != nil {
+						panic(err)
+					}
 					shouldFinishLock.RUnlock()
-					sendRequest(client, *method, dstURL, reqHost, reqID, reqBodyBuffer, received, bodyBuffer)
+					sendRequest(client, reqData.Method, reqData.MustGetUrl(), reqData.Host, reqID, reqData.GetBody(), received, bodyBuffer)
 				} else {
 					shouldFinishLock.RUnlock()
 					sendTraffic.Done()

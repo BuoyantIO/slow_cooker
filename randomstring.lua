@@ -1,5 +1,5 @@
 slow_cooker = require('slow_cooker')
-json = require('json')
+json = require('gopherJson')
 
 local Built = {}
 
@@ -40,6 +40,11 @@ function string.random(len, charset)
 end
 
 function slow_cooker.generate_data(method, url, host, reqID)
-  local body = {method=method, url=url, host=host, request_id=reqID, random_string=string.random(50)}
-  return json.encode(body)
+  local body = {random_string=string.random(50)}
+  return {
+    method=method,
+    url=string.format('%s/%i', string.gsub(url, '/$', '', 1), reqID),
+    host=host,
+    body=json.encode(body)
+  }
 end

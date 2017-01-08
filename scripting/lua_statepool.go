@@ -6,6 +6,8 @@ import (
 	"github.com/yuin/gopher-lua"
 )
 
+// A very slightly modified version of the lStatePool from the gopher-lua readme
+// https://github.com/yuin/gopher-lua#the-lstate-pool-pattern
 type lStatePool struct {
 	m             sync.Mutex
 	saved         []*lua.LState
