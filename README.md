@@ -30,6 +30,14 @@ total qps as `qps * concurrency`.
 
 Set a `Host:` header.
 
+`-header <header>`
+
+Set header to include in the requests. (Can be repeated.)
+
+Example:
+
+```$ slow_cooker -header 'X-Foo: bar' http://localhost:4140```
+
 `-interval 10s`
 
 How often to report to stdout.
