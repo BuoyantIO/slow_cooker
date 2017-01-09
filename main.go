@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"crypto/tls"
 	"flag"
 	"fmt"
@@ -22,10 +23,11 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/codahale/hdrhistogram"
 	"github.com/buoyantio/slow_cooker/hdrreport"
 	"github.com/buoyantio/slow_cooker/ring"
+	"github.com/buoyantio/slow_cooker/scripting"
 	"github.com/buoyantio/slow_cooker/window"
-	"github.com/codahale/hdrhistogram"
 )
 
 // DayInMs 1 day in milliseconds
@@ -66,10 +68,11 @@ func sendRequest(
 	host string,
 	headers headerSet,
 	reqID uint64,
+	reqBodyBuffer []byte,
 	received chan *MeasuredResponse,
 	bodyBuffer []byte,
 ) {
-	req, err := http.NewRequest(method, url.String(), nil)
+	req, err := http.NewRequest(method, url.String(), bytes.NewBuffer(reqBodyBuffer))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		fmt.Fprintf(os.Stderr, "\n")
@@ -156,6 +159,7 @@ func main() {
 	concurrency := flag.Int("concurrency", 1, "Number of request threads")
 	host := flag.String("host", "", "value of Host header to set")
 	method := flag.String("method", "GET", "HTTP method to use")
+	dataGeneratorScript := flag.String("dataGeneratorScript", "", "filename of the lua script to generate dynamic request body data")
 	interval := flag.Duration("interval", 10*time.Second, "reporting interval")
 	noreuse := flag.Bool("noreuse", false, "don't reuse connections")
 	compress := flag.Bool("compress", false, "use compression")
@@ -195,6 +199,17 @@ func main() {
 
 	if *concurrency < 1 {
 		exUsage("concurrency must be at least 1")
+	}
+
+	dataGenerator := func(*scripting.LReqData, uint64) error {
+		return nil
+	}
+	if *dataGeneratorScript != "" {
+		dataGenerator = scripting.NewDataGenerator(
+			scripting.NewLStatePool(*dataGeneratorScript,
+				*concurrency,
+				scripting.DefaultModuleLoaders),
+		)
 	}
 
 	hosts := strings.Split(*host, ",")
@@ -237,8 +252,17 @@ func main() {
 			for _ = range ticker.C {
 				shouldFinishLock.RLock()
 				if !shouldFinish {
+					reqID = atomic.AddUint64(&reqID, 1)
+					reqData := &scripting.LReqData{
+						Method: *method,
+						Url:    dstURL.String(),
+						Host:   hosts[rand.Intn(len(hosts))],
+					}
+					if err := dataGenerator(reqData, reqID); err != nil {
+						panic(err)
+					}
 					shouldFinishLock.RUnlock()
-					sendRequest(client, *method, dstURL, hosts[rand.Intn(len(hosts))], headers, atomic.AddUint64(&reqID, 1), received, bodyBuffer)
+					sendRequest(client, reqData.Method, reqData.MustGetUrl(), reqData.Host, headers, reqID, reqData.GetBody(), received, bodyBuffer)
 				} else {
 					shouldFinishLock.RUnlock()
 					sendTraffic.Done()

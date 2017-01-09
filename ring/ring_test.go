@@ -1,7 +1,6 @@
 package ring
 
 import (
-	"github.com/buoyantio/slow_cooker/ring"
 	. "gopkg.in/check.v1"
 	"testing"
 )
@@ -14,7 +13,7 @@ type RingTestSuite struct{}
 var _ = Suite(&RingTestSuite{})
 
 func (*RingTestSuite) TestRing(c *C) {
-	r := ring.New(5)
+	r := New(5)
 	c.Assert(len(r.Items), Equals, 5)
 
 	for i := 1; i <= 10; i++ {
@@ -24,7 +23,7 @@ func (*RingTestSuite) TestRing(c *C) {
 	c.Assert(r.Items, DeepEquals, []int{6, 7, 8, 9, 10})
 
 	// Make a ring of 6 items
-	r = ring.New(6)
+	r = New(6)
 	// Push 7 items
 	r.Push(1)
 	r.Push(10)
