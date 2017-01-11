@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## [1.0.1] - 2017-10-11
+### Added
+- Added basic CONTRIBUTORS file to help guide PRs
+- Added flag to set HTTP request body payload
+- Added flag to set HTTP request headers
+- Added flag to set HTTP method used for requests
+
+### Changed
+- Modified Dockerfile to build project from fully-qualified package location
+
 ## [1.0.0] - 2016-12-8
 ### Added
 - Added percent success to the output.
