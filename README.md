@@ -66,8 +66,8 @@ Exit after sending this many requests.
 `-data <string>`
 
 Include the specified body data in requests. If the data starts with a '@' the
-remaining value will be treated as a file path to read the data contents from,
-or '-' to read from stdin.
+remaining value will be treated as a file path to read the body data from,
+or if the data value is '@-', the body data will be read from stdin.
 
 # Using multiple Host headers
 
