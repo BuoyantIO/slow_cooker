@@ -63,6 +63,12 @@ requests that fall into that bucket.
 
 Exit after sending this many requests.
 
+`-data <string>`
+
+Include the specified body data in requests. If the data starts with a '@' the
+remaining value will be treated as a file path to read the data contents from,
+or '-' to read from stdin.
+
 # Using multiple Host headers
 
 If you want to send multiple Host headers to a backend, pass a comma separated
