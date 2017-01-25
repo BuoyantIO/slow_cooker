@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## Next release
+### Added
+- Added Prometheus `/metrics` endpoint, using new `metric-addr` param
+
 ## [1.0.1] - 2017-10-11
 ### Added
 - Added basic CONTRIBUTORS file to help guide PRs
