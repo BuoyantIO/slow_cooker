@@ -27,6 +27,8 @@ import (
 	"github.com/buoyantio/slow_cooker/ring"
 	"github.com/buoyantio/slow_cooker/window"
 	"github.com/codahale/hdrhistogram"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 // DayInMs 1 day in milliseconds
@@ -101,6 +103,7 @@ func sendRequest(
 	} else {
 		if sz, err := io.CopyBuffer(ioutil.Discard, response.Body, bodyBuffer); err == nil {
 			response.Body.Close()
+
 			received <- &MeasuredResponse{
 				uint64(sz),
 				response.StatusCode,
@@ -182,6 +185,32 @@ func loadData(data string) []byte {
 	return requestData
 }
 
+var (
+	promRequests = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "requests",
+		Help: "Number of requests",
+	})
+
+	promSuccesses = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "successes",
+		Help: "Number of successful requests",
+	})
+
+	promLatencyHistogram = prometheus.NewHistogram(prometheus.HistogramOpts{
+		Name: "latency_ms",
+		Help: "RPC latency distributions in milliseconds.",
+		// 50 exponential buckets ranging from 0.5 ms to 3 minutes
+		// TODO: make this tunable
+		Buckets: prometheus.ExponentialBuckets(0.5, 1.3, 50),
+	})
+)
+
+func registerMetrics() {
+	prometheus.MustRegister(promRequests)
+	prometheus.MustRegister(promSuccesses)
+	prometheus.MustRegister(promLatencyHistogram)
+}
+
 func main() {
 	qps := flag.Int("qps", 1, "QPS to send to backends per request thread")
 	concurrency := flag.Int("concurrency", 1, "Number of request threads")
@@ -198,6 +227,7 @@ func main() {
 	headers := make(headerSet)
 	flag.Var(&headers, "header", "HTTP request header. (can be repeated.)")
 	data := flag.String("data", "", "HTTP request data")
+	metricAddr := flag.String("metric-addr", "", "port to serve metrics on")
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: %s <url> [flags]\n", path.Base(os.Args[0]))
@@ -286,6 +316,14 @@ func main() {
 	interrupted := make(chan os.Signal, 2)
 	signal.Notify(interrupted, syscall.SIGINT)
 
+	if *metricAddr != "" {
+		registerMetrics()
+		go func() {
+			http.Handle("/metrics", promhttp.Handler())
+			http.ListenAndServe(*metricAddr, nil)
+		}()
+	}
+
 	for {
 		select {
 		// If we get a SIGINT, then start the shutdown process.
@@ -357,6 +395,7 @@ func main() {
 			}
 		case managedResp := <-received:
 			count++
+			promRequests.Inc()
 			if managedResp.err != nil {
 				fmt.Fprintln(os.Stderr, managedResp.err)
 				failed++
@@ -364,6 +403,8 @@ func main() {
 				size += managedResp.sz
 				if managedResp.code >= 200 && managedResp.code < 500 {
 					good++
+					promSuccesses.Inc()
+					promLatencyHistogram.Observe(float64(managedResp.latency))
 				} else {
 					bad++
 				}
