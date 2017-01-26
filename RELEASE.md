@@ -2,7 +2,7 @@
 
 Once all of the branches for the release have been merged and the CHANGELOG.md
 file in master has been updated to describe the new release, use these
-instructions to publish the release to Github and Dockerhub.
+instructions to publish the release to Github and Docker Hub.
 
 ## Github
 
@@ -18,24 +18,9 @@ on Github.
 * For the binaries, attach all three binaries from the `./release.sh` script.
 * Then click "Publish release"
 
-## Dockerhub
+## Docker Hub
 
-Next build and push the docker images to Dockerhub.
+Creating a new release tag in Github will automatically trigger a Docker Hub build.
 
-First build and push the versioned image (replacing `<release-version>` with the
-actual numeric release version that you are releasing):
-
-```bash
-$ docker build -t buoyantio/slow_cooker:<release-version> .
-$ docker push buoyantio/slow_cooker:<release-version>
-```
-
-Then update the image that's tagged as `latest` to match the new release:
-
-```bash
-$ docker tag buoyantio/slow_cooker:<release-version> buoyantio/slow_cooker:latest
-$ docker push buoyantio/slow_cooker:latest
-```
-
-Check the Dockerhub [tags page](https://hub.docker.com/r/buoyantio/slow_cooker/tags/)
+Check the Docker Hub [tags page](https://hub.docker.com/r/buoyantio/slow_cooker/tags/)
 to make sure that the new release tag shows up.
