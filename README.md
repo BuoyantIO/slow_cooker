@@ -1,3 +1,5 @@
+[![CircleCI](https://circleci.com/gh/BuoyantIO/slow_cooker.svg?style=shield)](https://circleci.com/gh/BuoyantIO/slow_cooker)
+
 # slow_cooker
 A load tester for tenderizing your servers.
 
@@ -14,6 +16,10 @@ periodic reports of qps and latency.
 or:
 
 `go run main.go <url>`
+
+# Testing
+
+`go test ./...`
 
 # Flags
 
