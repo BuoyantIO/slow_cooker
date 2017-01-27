@@ -152,7 +152,7 @@ connection failure.
 Use `tee` to keep a logfile of slow_cooker results and `cut` to find bad or failed requests.
 
 ```bash
-./slow_cooker_linux_amd64 -qps 5 -concurrency 20 -interval 10s -reuse http://localhost:4140 | tee slow_cooker.log
+./slow_cooker_linux_amd64 -qps 5 -concurrency 20 -interval 10s http://localhost:4140 | tee slow_cooker.log
 ```
 
 ### use cut to look at specific fields from your tee'd logfile
