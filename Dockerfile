@@ -1,4 +1,4 @@
-FROM library/golang:1.7.3
+FROM library/golang:1.8rc2
 
 WORKDIR /go/src/slow_cooker
 
