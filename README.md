@@ -139,11 +139,12 @@ slowdowns. If you're running multi-hour tests, bumping up the reporting
 interval to 60 seconds (`60s` or `1m`) is recommended.
 
 ```
-$timestamp $good/$bad/$failed $trafficGoal $percentGood $interval $min [$p50 $p95 $p99 $p999] $max
+$timestamp $good/$bad/$failed $trafficGoal $percentGoal $interval $min [$p50 $p95 $p99 $p999] $max
 ```
 
-`bad` means a status code in the 500 range. `failed` means a
-connection failure.
+`bad` means a status code in the 500 range. `failed` means a connection failure.
+`percentGoal` is calculated as the total number of `good` and `bad` requests as
+a percentage of `trafficGoal`.
 
 ## Tips and tricks
 

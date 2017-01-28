@@ -291,7 +291,7 @@ func main() {
 	intPadding := strings.Repeat(" ", intLen-2)
 
 	fmt.Printf("# sending %d %s req/s with concurrency=%d to %s ...\n", (*qps * *concurrency), *method, *concurrency, dstURL)
-	fmt.Printf("# %s good/b/f t   good%% %s min [p50 p95 p99  p999]  max change\n", timePadding, intPadding)
+	fmt.Printf("# %s good/b/f t   goal%% %s min [p50 p95 p99  p999]  max change\n", timePadding, intPadding)
 	for i := 0; i < *concurrency; i++ {
 		ticker := time.NewTicker(timeToWait)
 		go func() {
@@ -353,7 +353,7 @@ func main() {
 				min = 0
 			}
 			// Periodically print stats about the request load.
-			percentAchieved := int(math.Min(((float64(good) /
+			percentAchieved := int(math.Min((((float64(good) + float64(bad)) /
 				float64(totalTrafficTarget)) * 100), 100))
 
 			lastP99 := int(hist.ValueAtQuantile(99))
