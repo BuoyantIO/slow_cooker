@@ -227,7 +227,7 @@ func main() {
 	headers := make(headerSet)
 	flag.Var(&headers, "header", "HTTP request header. (can be repeated.)")
 	data := flag.String("data", "", "HTTP request data")
-	metricAddr := flag.String("metric-addr", "", "port to serve metrics on")
+	metricAddr := flag.String("metric-addr", "", "address to serve metrics on")
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: %s <url> [flags]\n", path.Base(os.Args[0]))

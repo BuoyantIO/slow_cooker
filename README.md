@@ -23,57 +23,22 @@ or:
 
 # Flags
 
-`-qps <int>`
-
-Queries per second to send to a backend.
-
-`-concurrency <int>`
-
-How many goroutines to run, each at the specified qps level. Measure
-total qps as `qps * concurrency`.
-
-`-host <string>`
-
-Set a `Host:` header.
-
-`-header <header>`
-
-Set header to include in the requests. (Can be repeated.)
-
-Example:
-
-```$ slow_cooker -header 'X-Foo: bar' http://localhost:4140```
-
-`-interval 10s`
-
-How often to report to stdout.
-
-`-noreuse`
-
-Do not reuse connections. (Connection reuse is the default.)
-
-`-compress`
-
-Ask for compressed responses.
-
-`-noLatencySummary`
-
-Don't print the latency histogram report at the end.
-
-`-reportLatenciesCSV <filename>`
-
-Writes a CSV file of latencies. Format is: milliseconds to number of
-requests that fall into that bucket.
-
-`-totalRequests <int>`
-
-Exit after sending this many requests.
-
-`-data <string>`
-
-Include the specified body data in requests. If the data starts with a '@' the
-remaining value will be treated as a file path to read the body data from,
-or if the data value is '@-', the body data will be read from stdin.
+| Flag                  | Default   | Description |
+|-----------------------|-----------|-------------|
+| `-qps`                | 1         | QPS to send to backends per request thread. |
+| `-concurrency`        | 1         | Number of goroutines to run, each at the specified QPS level. Measure total QPS as `qps * concurrency`. |
+| `-compress`           | `<unset>` | If set, ask for compressed responses. |
+| `-data`               | `<none>`  | Include the specified body data in requests. If the data starts with a '@' the remaining value will be treated as a file path to read the body data from, or if the data value is '@-', the body data will be read from stdin. |
+| `-header`             | `<none>`  | Adds additional headers to each request. Can be specified multiple times. Format is `key: value`. |
+| `-host`               | `<none>`  | Overrides the default host header value that's set on each request. |
+| `-interval`           | 10s       | How often to report stats to stdout. |
+| `-method`             | GET       | Determines which HTTP method to use when making the request. |
+| `-metric-addr`        | `<none>`  | Address to use when serving the Prometheus `/metrics` endpoint. No metrics are served if unset. Format is `host:port` or `:port`. |
+| `-noLatencySummary`   | `<unset>` | If set, don't print the latency histogram report at the end. |
+| `-noreuse`            | `<unset>` | If set, do not reuse connections. Default is to reuse connections. |
+| `-reportLatenciesCSV` | `<none>`  | Filename to write CSV latency values. Format of CSV is millisecond buckets with number of requests in each bucket. |
+| `-totalRequests`      | `<none>`  | Exit after sending this many requests. |
+| `-help`               | `<unset>` | If set, print all available flags and exit. |
 
 # Using multiple Host headers
 
