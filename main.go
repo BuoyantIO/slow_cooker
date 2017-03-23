@@ -23,9 +23,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/buoyantio/slow_cooker/hdrreport"
-	"github.com/buoyantio/slow_cooker/ring"
-	"github.com/buoyantio/slow_cooker/window"
+	"github.com/BuoyantIO/slow_cooker/hdrreport"
+	"github.com/BuoyantIO/slow_cooker/ring"
+	"github.com/BuoyantIO/slow_cooker/window"
 	"github.com/codahale/hdrhistogram"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
