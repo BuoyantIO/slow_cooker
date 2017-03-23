@@ -1,7 +1,7 @@
 dependencies:
   override:
-    - mkdir -p ~/src/github.com/BuoyantIO
-    - ln -s ~/slow_cooker ~/src/github.com/BuoyantIO
+    - mkdir -p ~/src/github.com/buoyantio
+    - ln -s ~/slow_cooker ~/src/github.com/buoyantio
 test:
   override:
-    - cd ~/src/github.com/BuoyantIO/slow_cooker && GOPATH=~/ go test -v ./...
+    - cd ~/src/github.com/buoyantio/slow_cooker && GOPATH=~/ go test -v ./...
