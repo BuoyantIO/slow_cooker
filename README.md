@@ -39,6 +39,8 @@ or:
 | `-reportLatenciesCSV` | `<none>`  | Filename to write CSV latency values. Format of CSV is millisecond buckets with number of requests in each bucket. |
 | `-totalRequests`      | `<none>`  | Exit after sending this many requests. |
 | `-help`               | `<unset>` | If set, print all available flags and exit. |
+| `-hashSampleRate`     | `0.0`     | Sampe Rate for checking request body's hash. Interval in the range of [0.0, 1.0] |
+| `-hashValue`          | `<none>`  | fnv-1a hash value to check the request body against |
 
 # Using multiple Host headers
 
@@ -104,12 +106,14 @@ slowdowns. If you're running multi-hour tests, bumping up the reporting
 interval to 60 seconds (`60s` or `1m`) is recommended.
 
 ```
-$timestamp $good/$bad/$failed $trafficGoal $percentGoal $interval $min [$p50 $p95 $p99 $p999] $max
+$timestamp $good/$bad/$failed $trafficGoal $percentGoal $interval $min [$p50 $p95 $p99 $p999] $max $bhash
 ```
 
 `bad` means a status code in the 500 range. `failed` means a connection failure.
 `percentGoal` is calculated as the total number of `good` and `bad` requests as
 a percentage of `trafficGoal`.
+
+`bhash` is the number of failed hashes of body content. A value greater than 0 indicates a real problem.
 
 ## Tips and tricks
 
