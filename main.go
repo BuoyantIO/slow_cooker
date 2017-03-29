@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"compress/gzip"
 	"crypto/tls"
 	"flag"
 	"fmt"
@@ -27,7 +26,6 @@ import (
 	"time"
 
 	"github.com/buoyantio/slow_cooker/hdrreport"
-	"github.com/buoyantio/slow_cooker/ioutils"
 	"github.com/buoyantio/slow_cooker/ring"
 	"github.com/buoyantio/slow_cooker/window"
 	"github.com/codahale/hdrhistogram"
@@ -109,9 +107,9 @@ func sendRequest(
 	if err != nil {
 		received <- &MeasuredResponse{err: err}
 	} else {
+		defer response.Body.Close()
 		if !checkHash {
 			if sz, err := io.CopyBuffer(ioutil.Discard, response.Body, bodyBuffer); err == nil {
-				response.Body.Close()
 
 				received <- &MeasuredResponse{
 					sz:      uint64(sz),
@@ -121,27 +119,17 @@ func sendRequest(
 				received <- &MeasuredResponse{err: err}
 			}
 		} else {
-			//var measure MeasuredResponse
-			var buf bytes.Buffer
-			var writer io.WriteCloser
-			if response.Uncompressed {
-				writer = ioutils.NewWriteCloserWrapper(&buf, func() error { return nil })
+			if bytes, err := ioutil.ReadAll(response.Body); err != nil {
+				received <- &MeasuredResponse{err: err}
 			} else {
-				writer = gzip.NewWriter(&buf)
-				defer writer.Close()
-			}
-
-			if sz, err := io.Copy(writer, response.Body); err != nil {
-				received <- &MeasuredResponse{0, 0, 0, false, false, err}
-			} else {
-				hasher.Write(buf.Bytes())
+				hasher.Write(bytes)
 				sum := hasher.Sum64()
 				failedHashCheck := false
 				if hashValue != sum {
 					failedHashCheck = true
 				}
 				received <- &MeasuredResponse{
-					sz:              uint64(sz),
+					sz:              uint64(len(bytes)),
 					code:            response.StatusCode,
 					latency:         elapsed.Nanoseconds() / 1000000,
 					failedHashCheck: failedHashCheck}
