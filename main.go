@@ -5,6 +5,8 @@ import (
 	"crypto/tls"
 	"flag"
 	"fmt"
+	"hash"
+	"hash/fnv"
 	"io"
 	"io/ioutil"
 	"log"
@@ -37,11 +39,12 @@ const DayInMs int64 = 24 * 60 * 60 * 1000000
 // MeasuredResponse holds metadata about the response
 // we receive from the server under test.
 type MeasuredResponse struct {
-	sz      uint64
-	code    int
-	latency int64
-	timeout bool
-	err     error
+	sz              uint64
+	code            int
+	latency         int64
+	timeout         bool
+	failedHashCheck bool
+	err             error
 }
 
 func newClient(
@@ -70,6 +73,9 @@ func sendRequest(
 	headers headerSet,
 	requestData []byte,
 	reqID uint64,
+	hashValue uint64,
+	checkHash bool,
+	hasher hash.Hash64,
 	received chan *MeasuredResponse,
 	bodyBuffer []byte,
 ) {
@@ -99,19 +105,35 @@ func sendRequest(
 	response, err := client.Do(req)
 
 	if err != nil {
-		received <- &MeasuredResponse{0, 0, 0, false, err}
+		received <- &MeasuredResponse{err: err}
 	} else {
-		if sz, err := io.CopyBuffer(ioutil.Discard, response.Body, bodyBuffer); err == nil {
-			response.Body.Close()
+		defer response.Body.Close()
+		if !checkHash {
+			if sz, err := io.CopyBuffer(ioutil.Discard, response.Body, bodyBuffer); err == nil {
 
-			received <- &MeasuredResponse{
-				uint64(sz),
-				response.StatusCode,
-				elapsed.Nanoseconds() / 1000000,
-				false,
-				nil}
+				received <- &MeasuredResponse{
+					sz:      uint64(sz),
+					code:    response.StatusCode,
+					latency: elapsed.Nanoseconds() / 1000000}
+			} else {
+				received <- &MeasuredResponse{err: err}
+			}
 		} else {
-			received <- &MeasuredResponse{0, 0, 0, false, err}
+			if bytes, err := ioutil.ReadAll(response.Body); err != nil {
+				received <- &MeasuredResponse{err: err}
+			} else {
+				hasher.Write(bytes)
+				sum := hasher.Sum64()
+				failedHashCheck := false
+				if hashValue != sum {
+					failedHashCheck = true
+				}
+				received <- &MeasuredResponse{
+					sz:              uint64(len(bytes)),
+					code:            response.StatusCode,
+					latency:         elapsed.Nanoseconds() / 1000000,
+					failedHashCheck: failedHashCheck}
+			}
 		}
 	}
 }
@@ -211,6 +233,12 @@ func registerMetrics() {
 	prometheus.MustRegister(promLatencyHistogram)
 }
 
+// Sample Rate is between [0.0, 1.0] and determines what percentage of request bodies
+// should be checked that their hash matches a known hash.
+func shouldCheckHash(sampleRate float64) bool {
+	return rand.Float64() < sampleRate
+}
+
 func main() {
 	qps := flag.Int("qps", 1, "QPS to send to backends per request thread")
 	concurrency := flag.Int("concurrency", 1, "Number of request threads")
@@ -228,6 +256,8 @@ func main() {
 	flag.Var(&headers, "header", "HTTP request header. (can be repeated.)")
 	data := flag.String("data", "", "HTTP request data")
 	metricAddr := flag.String("metric-addr", "", "address to serve metrics on")
+	hashValue := flag.Uint64("hashValue", 0, "fnv-1a hash value to check the request body against")
+	hashSampleRate := flag.Float64("hashSampleRate", 0.0, "Sampe Rate for checking request body's hash. Interval in the range of [0.0, 1.0]")
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: %s <url> [flags]\n", path.Base(os.Args[0]))
@@ -271,6 +301,7 @@ func main() {
 	failed := uint64(0)
 	min := int64(math.MaxInt64)
 	max := int64(0)
+	failedHashCheck := int64(0)
 
 	hist := hdrhistogram.New(0, DayInMs, 3)
 	globalHist := hdrhistogram.New(0, DayInMs, 3)
@@ -291,7 +322,7 @@ func main() {
 	intPadding := strings.Repeat(" ", intLen-2)
 
 	fmt.Printf("# sending %d %s req/s with concurrency=%d to %s ...\n", (*qps * *concurrency), *method, *concurrency, dstURL)
-	fmt.Printf("# %s good/b/f t   goal%% %s min [p50 p95 p99  p999]  max change\n", timePadding, intPadding)
+	fmt.Printf("# %s good/b/f t   goal%% %s min [p50 p95 p99  p999]  max bhash change\n", timePadding, intPadding)
 	for i := 0; i < *concurrency; i++ {
 		ticker := time.NewTicker(timeToWait)
 		go func() {
@@ -299,10 +330,17 @@ func main() {
 			bodyBuffer := make([]byte, 50000)
 			sendTraffic.Add(1)
 			for _ = range ticker.C {
+				var checkHash bool
+				hasher := fnv.New64a()
+				if *hashSampleRate > 0.0 {
+					checkHash = shouldCheckHash(*hashSampleRate)
+				} else {
+					checkHash = false
+				}
 				shouldFinishLock.RLock()
 				if !shouldFinish {
 					shouldFinishLock.RUnlock()
-					sendRequest(client, *method, dstURL, hosts[rand.Intn(len(hosts))], headers, requestData, atomic.AddUint64(&reqID, 1), received, bodyBuffer)
+					sendRequest(client, *method, dstURL, hosts[rand.Intn(len(hosts))], headers, requestData, atomic.AddUint64(&reqID, 1), *hashValue, checkHash, hasher, received, bodyBuffer)
 				} else {
 					shouldFinishLock.RUnlock()
 					sendTraffic.Done()
@@ -364,7 +402,7 @@ func main() {
 			changeIndicator := window.CalculateChangeIndicator(latencyHistory.Items, lastP99)
 			latencyHistory.Push(lastP99)
 
-			fmt.Printf("%s %6d/%1d/%1d %d %3d%% %s %3d [%3d %3d %3d %4d ] %4d %s\n",
+			fmt.Printf("%s %6d/%1d/%1d %d %3d%% %s %3d [%3d %3d %3d %4d ] %4d %6d %s\n",
 				t.Format(time.RFC3339),
 				good,
 				bad,
@@ -378,6 +416,7 @@ func main() {
 				hist.ValueAtQuantile(99),
 				hist.ValueAtQuantile(999),
 				max,
+				failedHashCheck,
 				changeIndicator)
 
 			count = 0
@@ -387,6 +426,7 @@ func main() {
 			min = math.MaxInt64
 			max = 0
 			failed = 0
+			failedHashCheck = 0
 			hist.Reset()
 			timeout = time.After(*interval)
 
@@ -401,6 +441,9 @@ func main() {
 				failed++
 			} else {
 				size += managedResp.sz
+				if managedResp.failedHashCheck {
+					failedHashCheck++
+				}
 				if managedResp.code >= 200 && managedResp.code < 500 {
 					good++
 					promSuccesses.Inc()
