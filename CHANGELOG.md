@@ -6,6 +6,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ## Next release
 ### Added
 - Users can now check request bodies against an fnv-1a hash value with a configurable sample rate.
+- Added support for reading a target URL list from a file.
+
 ### Changed
 - Renamed `good%` column to `goal%`, and started counting bad requests toward goal.
 
