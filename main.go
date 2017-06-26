@@ -12,6 +12,7 @@ import (
 	"log"
 	"math"
 	"math/rand"
+	"net"
 	"net/http"
 	"net/http/httptrace"
 	"net/url"
@@ -58,11 +59,18 @@ func newClient(
 		DisableKeepAlives:   noreuse,
 		MaxIdleConnsPerHost: maxConn,
 		Proxy:               http.ProxyFromEnvironment,
+		Dial: (&net.Dialer{
+			Timeout: 5 * time.Second,
+		}).Dial,
+		TLSHandshakeTimeout: 5 * time.Second,
 	}
 	if https {
 		tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	}
-	return &http.Client{Transport: &tr}
+	return &http.Client{
+		Timeout: 10 * time.Second,
+		Transport: &tr,
+	}
 }
 
 func sendRequest(
@@ -73,6 +81,7 @@ func sendRequest(
 	headers headerSet,
 	requestData []byte,
 	reqID uint64,
+	noreuse bool,
 	hashValue uint64,
 	checkHash bool,
 	hasher hash.Hash64,
@@ -80,6 +89,7 @@ func sendRequest(
 	bodyBuffer []byte,
 ) {
 	req, err := http.NewRequest(method, url.String(), bytes.NewBuffer(requestData))
+	req.Close = noreuse
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		fmt.Fprintf(os.Stderr, "\n")
@@ -340,7 +350,7 @@ func main() {
 				shouldFinishLock.RLock()
 				if !shouldFinish {
 					shouldFinishLock.RUnlock()
-					sendRequest(client, *method, dstURL, hosts[rand.Intn(len(hosts))], headers, requestData, atomic.AddUint64(&reqID, 1), *hashValue, checkHash, hasher, received, bodyBuffer)
+					sendRequest(client, *method, dstURL, hosts[rand.Intn(len(hosts))], headers, requestData, atomic.AddUint64(&reqID, 1), *noreuse, *hashValue, checkHash, hasher, received, bodyBuffer)
 				} else {
 					shouldFinishLock.RUnlock()
 					sendTraffic.Done()
