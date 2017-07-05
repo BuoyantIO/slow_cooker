@@ -53,6 +53,7 @@ func newClient(
 	https bool,
 	noreuse bool,
 	maxConn int,
+	timeout time.Duration,
 ) *http.Client {
 	tr := http.Transport{
 		DisableCompression:  !compress,
@@ -68,7 +69,7 @@ func newClient(
 		tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	}
 	return &http.Client{
-		Timeout: 10 * time.Second,
+		Timeout:   timeout,
 		Transport: &tr,
 	}
 }
@@ -257,6 +258,7 @@ func main() {
 	interval := flag.Duration("interval", 10*time.Second, "reporting interval")
 	noreuse := flag.Bool("noreuse", false, "don't reuse connections")
 	compress := flag.Bool("compress", false, "use compression")
+	clientTimeout := flag.Duration("timeout", 10*time.Second, "individual request timeout")
 	noLatencySummary := flag.Bool("noLatencySummary", false, "suppress the final latency summary")
 	reportLatenciesCSV := flag.String("reportLatenciesCSV", "",
 		"filename to output hdrhistogram latencies in CSV")
@@ -323,7 +325,7 @@ func main() {
 	totalTrafficTarget = *qps * *concurrency * int(interval.Seconds())
 
 	doTLS := dstURL.Scheme == "https"
-	client := newClient(*compress, doTLS, *noreuse, *concurrency)
+	client := newClient(*compress, doTLS, *noreuse, *concurrency, *clientTimeout)
 	var sendTraffic sync.WaitGroup
 	// The time portion of the header can change due to timezone.
 	timeLen := len(time.Now().Format(time.RFC3339))
