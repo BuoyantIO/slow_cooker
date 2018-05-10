@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"crypto/tls"
 	"flag"
@@ -50,7 +51,6 @@ type MeasuredResponse struct {
 
 func newClient(
 	compress bool,
-	https bool,
 	noreuse bool,
 	maxConn int,
 	timeout time.Duration,
@@ -64,9 +64,7 @@ func newClient(
 			Timeout: 5 * time.Second,
 		}).Dial,
 		TLSHandshakeTimeout: 5 * time.Second,
-	}
-	if https {
-		tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+		TLSClientConfig:     &tls.Config{InsecureSkipVerify: true},
 	}
 	return &http.Client{
 		Timeout:   timeout,
@@ -218,6 +216,45 @@ func loadData(data string) []byte {
 	return requestData
 }
 
+func loadURLs(urldest string) []*url.URL {
+	var urls []*url.URL
+	var err error
+	var scanner *bufio.Scanner
+
+	if strings.HasPrefix(urldest, "@") {
+		var file *os.File
+		path := urldest[1:]
+		if path == "-" {
+			file = os.Stdin
+		} else {
+			file, err = os.Open(path)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, err.Error())
+				os.Exit(1)
+			}
+			defer file.Close()
+		}
+		scanner = bufio.NewScanner(file)
+	} else {
+		scanner = bufio.NewScanner(strings.NewReader(urldest))
+	}
+
+	for i := 1; scanner.Scan(); i++ {
+		line := scanner.Text()
+		URL, err := url.Parse(line)
+		if err != nil {
+			exUsage("invalid URL on line %d: '%s': %s\n", i, line, err.Error())
+		} else if URL.Scheme == "" {
+			exUsage("invalid URL on line %d: '%s': Missing scheme\n", i, line)
+		} else if URL.Host == "" {
+			exUsage("invalid URL on line %d: '%s': Missing host\n", i, line)
+		}
+		urls = append(urls, URL)
+	}
+
+	return urls
+}
+
 var (
 	promRequests = prometheus.NewCounter(prometheus.CounterOpts{
 		Name: "requests",
@@ -288,10 +325,7 @@ func main() {
 	}
 
 	urldest := flag.Arg(0)
-	dstURL, err := url.Parse(urldest)
-	if err != nil {
-		exUsage("invalid URL: '%s': %s\n", urldest, err.Error())
-	}
+	dstURLs := loadURLs(urldest)
 
 	if *qps < 1 {
 		exUsage("qps must be at least 1")
@@ -324,8 +358,7 @@ func main() {
 	var totalTrafficTarget int
 	totalTrafficTarget = *qps * *concurrency * int(interval.Seconds())
 
-	doTLS := dstURL.Scheme == "https"
-	client := newClient(*compress, doTLS, *noreuse, *concurrency, *clientTimeout)
+	client := newClient(*compress, *noreuse, *concurrency, *clientTimeout)
 	var sendTraffic sync.WaitGroup
 	// The time portion of the header can change due to timezone.
 	timeLen := len(time.Now().Format(time.RFC3339))
@@ -333,11 +366,21 @@ func main() {
 	intLen := len(fmt.Sprintf("%s", *interval))
 	intPadding := strings.Repeat(" ", intLen-2)
 
-	fmt.Printf("# sending %d %s req/s with concurrency=%d to %s ...\n", (*qps * *concurrency), *method, *concurrency, dstURL)
+	if len(dstURLs) == 1 {
+		fmt.Printf("# sending %d %s req/s with concurrency=%d to %s ...\n", (*qps * *concurrency), *method, *concurrency, dstURLs[0])
+	} else {
+		fmt.Printf("# sending %d %s req/s with concurrency=%d using url list %s ...\n", (*qps * *concurrency), *method, *concurrency, urldest[1:])
+	}
+
 	fmt.Printf("# %s good/b/f t   goal%% %s min [p50 p95 p99  p999]  max bhash change\n", timePadding, intPadding)
+	stride := *concurrency
+	if stride > len(dstURLs) {
+		stride = 1
+	}
 	for i := 0; i < *concurrency; i++ {
 		ticker := time.NewTicker(timeToWait)
-		go func() {
+		go func(offset int) {
+			y := offset
 			// For each goroutine we want to reuse a buffer for performance reasons.
 			bodyBuffer := make([]byte, 50000)
 			sendTraffic.Add(1)
@@ -352,14 +395,18 @@ func main() {
 				shouldFinishLock.RLock()
 				if !shouldFinish {
 					shouldFinishLock.RUnlock()
-					sendRequest(client, *method, dstURL, hosts[rand.Intn(len(hosts))], headers, requestData, atomic.AddUint64(&reqID, 1), *noreuse, *hashValue, checkHash, hasher, received, bodyBuffer)
+					sendRequest(client, *method, dstURLs[y], hosts[rand.Intn(len(hosts))], headers, requestData, atomic.AddUint64(&reqID, 1), *noreuse, *hashValue, checkHash, hasher, received, bodyBuffer)
 				} else {
 					shouldFinishLock.RUnlock()
 					sendTraffic.Done()
 					return
 				}
+				y += stride
+				if y >= len(dstURLs) {
+					y = offset
+				}
 			}
-		}()
+		}(i % len(dstURLs))
 	}
 
 	cleanup := make(chan bool, 2)
