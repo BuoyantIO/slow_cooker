@@ -4,12 +4,17 @@ All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Next release
+
+## [1.1.1] - 2018-06-19
 ### Added
 - Users can now check request bodies against an fnv-1a hash value with a configurable sample rate.
 - Added support for reading a target URL list from a file.
+- Added support for configuring the client timeout via a `-timeout` flag.
 
 ### Changed
 - Renamed `good%` column to `goal%`, and started counting bad requests toward goal.
+- Ensured that the client connection is closed if the `-noreuse` flag is set.
+- Upgraded to go 1.10 and dep; switched to multi-stage docker builds.
 
 ## [1.1.0] - 2017-01-26
 ### Added
