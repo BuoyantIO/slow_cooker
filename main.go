@@ -35,15 +35,12 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-// DayInMs 1 day in milliseconds
-const DayInMs int64 = 24 * 60 * 60 * 1000000
-
 // MeasuredResponse holds metadata about the response
 // we receive from the server under test.
 type MeasuredResponse struct {
 	sz              uint64
 	code            int
-	latency         int64
+	latency         time.Duration
 	timeout         bool
 	failedHashCheck bool
 	err             error
@@ -123,7 +120,7 @@ func sendRequest(
 				received <- &MeasuredResponse{
 					sz:      uint64(sz),
 					code:    response.StatusCode,
-					latency: elapsed.Nanoseconds() / 1000000}
+					latency: elapsed}
 			} else {
 				received <- &MeasuredResponse{err: err}
 			}
@@ -140,7 +137,7 @@ func sendRequest(
 				received <- &MeasuredResponse{
 					sz:              uint64(len(bytes)),
 					code:            response.StatusCode,
-					latency:         elapsed.Nanoseconds() / 1000000,
+					latency:         elapsed,
 					failedHashCheck: failedHashCheck}
 			}
 		}
@@ -266,19 +263,35 @@ var (
 		Help: "Number of successful requests",
 	})
 
-	promLatencyHistogram = prometheus.NewHistogram(prometheus.HistogramOpts{
+	promLatencyMSHistogram = prometheus.NewHistogram(prometheus.HistogramOpts{
 		Name: "latency_ms",
 		Help: "RPC latency distributions in milliseconds.",
 		// 50 exponential buckets ranging from 0.5 ms to 3 minutes
 		// TODO: make this tunable
 		Buckets: prometheus.ExponentialBuckets(0.5, 1.3, 50),
 	})
+	promLatencyUSHistogram = prometheus.NewHistogram(prometheus.HistogramOpts{
+		Name: "latency_us",
+		Help: "RPC latency distributions in microseconds.",
+		// 50 exponential buckets ranging from 1 us to 2.4 seconds
+		// TODO: make this tunable
+		Buckets: prometheus.ExponentialBuckets(1, 1.35, 50),
+	})
+	promLatencyNSHistogram = prometheus.NewHistogram(prometheus.HistogramOpts{
+		Name: "latency_ns",
+		Help: "RPC latency distributions in nanoseconds.",
+		// 50 exponential buckets ranging from 1 ns to 0.4 seconds
+		// TODO: make this tunable
+		Buckets: prometheus.ExponentialBuckets(1, 1.5, 50),
+	})
 )
 
 func registerMetrics() {
 	prometheus.MustRegister(promRequests)
 	prometheus.MustRegister(promSuccesses)
-	prometheus.MustRegister(promLatencyHistogram)
+	prometheus.MustRegister(promLatencyMSHistogram)
+	prometheus.MustRegister(promLatencyUSHistogram)
+	prometheus.MustRegister(promLatencyNSHistogram)
 }
 
 // Sample Rate is between [0.0, 1.0] and determines what percentage of request bodies
@@ -299,6 +312,7 @@ func main() {
 	noLatencySummary := flag.Bool("noLatencySummary", false, "suppress the final latency summary")
 	reportLatenciesCSV := flag.String("reportLatenciesCSV", "",
 		"filename to output hdrhistogram latencies in CSV")
+	latencyUnit := flag.String("latencyUnit", "ms", "latency units [ms|us|ns]")
 	help := flag.Bool("help", false, "show help message")
 	totalRequests := flag.Uint64("totalRequests", 0, "total number of requests to send before exiting")
 	headers := make(headerSet)
@@ -335,6 +349,20 @@ func main() {
 		exUsage("concurrency must be at least 1")
 	}
 
+	latencyDur := time.Millisecond
+	if *latencyUnit == "ms" {
+		latencyDur = time.Millisecond
+	} else if *latencyUnit == "us" {
+		latencyDur = time.Microsecond
+	} else if *latencyUnit == "ns" {
+		latencyDur = time.Nanosecond
+	} else {
+		exUsage("latency unit should be [ms | us | ns].")
+	}
+	latencyDurNS := latencyDur.Nanoseconds()
+	msInNS := time.Millisecond.Nanoseconds()
+	usInNS := time.Microsecond.Nanoseconds()
+
 	hosts := strings.Split(*host, ",")
 
 	requestData := loadData(*data)
@@ -349,8 +377,11 @@ func main() {
 	max := int64(0)
 	failedHashCheck := int64(0)
 
-	hist := hdrhistogram.New(0, DayInMs, 3)
-	globalHist := hdrhistogram.New(0, DayInMs, 3)
+	// dayInTimeUnits represents the number of time units (ms, us, or ns) in a 24-hour day.
+	dayInTimeUnits := int64(24 * time.Hour / latencyDur)
+
+	hist := hdrhistogram.New(0, dayInTimeUnits, 3)
+	globalHist := hdrhistogram.New(0, dayInTimeUnits, 3)
 	latencyHistory := ring.New(5)
 	received := make(chan *MeasuredResponse)
 	timeout := time.After(*interval)
@@ -499,6 +530,9 @@ func main() {
 				fmt.Fprintln(os.Stderr, managedResp.err)
 				failed++
 			} else {
+				respLatencyNS := managedResp.latency.Nanoseconds()
+				latency := respLatencyNS / latencyDurNS
+
 				size += managedResp.sz
 				if managedResp.failedHashCheck {
 					failedHashCheck++
@@ -506,21 +540,23 @@ func main() {
 				if managedResp.code >= 200 && managedResp.code < 500 {
 					good++
 					promSuccesses.Inc()
-					promLatencyHistogram.Observe(float64(managedResp.latency))
+					promLatencyMSHistogram.Observe(float64(respLatencyNS / msInNS))
+					promLatencyUSHistogram.Observe(float64(respLatencyNS / usInNS))
+					promLatencyNSHistogram.Observe(float64(respLatencyNS))
 				} else {
 					bad++
 				}
 
-				if managedResp.latency < min {
-					min = managedResp.latency
+				if latency < min {
+					min = latency
 				}
 
-				if managedResp.latency > max {
-					max = managedResp.latency
+				if latency > max {
+					max = latency
 				}
 
-				hist.RecordValue(managedResp.latency)
-				globalHist.RecordValue(managedResp.latency)
+				hist.RecordValue(latency)
+				globalHist.RecordValue(latency)
 			}
 		}
 	}

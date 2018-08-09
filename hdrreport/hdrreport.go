@@ -1,10 +1,23 @@
 package hdrreport
 
 import (
+	"encoding/json"
 	"fmt"
-	"github.com/codahale/hdrhistogram"
+	"log"
 	"os"
+
+	"github.com/codahale/hdrhistogram"
 )
+
+// Quantiles contains common latency quantiles (p50, p95, p999)
+type Quantiles struct {
+	Quantile50  int64 `json:"p50"`
+	Quantile75  int64 `json:"p75"`
+	Quantile90  int64 `json:"p90"`
+	Quantile95  int64 `json:"p95"`
+	Quantile99  int64 `json:"p99"`
+	Quantile999 int64 `json:"p999"`
+}
 
 func WriteReportCSV(filename *string, hist *hdrhistogram.Histogram) error {
 	f, err := os.Create(*filename)
@@ -37,32 +50,18 @@ func WriteReportCSV(filename *string, hist *hdrhistogram.Histogram) error {
 }
 
 func PrintLatencySummary(hist *hdrhistogram.Histogram) {
-	fmt.Printf("FROM    TO #REQUESTS\n")
-	fmt.Printf("   0     2 %d\n", SumBars(0, 2, hist.Distribution()))
-	fmt.Printf("   2     8 %d\n", SumBars(2, 8, hist.Distribution()))
-	fmt.Printf("   8    32 %d\n", SumBars(8, 32, hist.Distribution()))
-	fmt.Printf("  32    64 %d\n", SumBars(32, 64, hist.Distribution()))
-	fmt.Printf("  64   128 %d\n", SumBars(64, 128, hist.Distribution()))
-	fmt.Printf(" 128   256 %d\n", SumBars(128, 256, hist.Distribution()))
-	fmt.Printf(" 256   512 %d\n", SumBars(256, 512, hist.Distribution()))
-	fmt.Printf(" 512  1024 %d\n", SumBars(512, 1024, hist.Distribution()))
-	fmt.Printf("1024  4096 %d\n", SumBars(1024, 4096, hist.Distribution()))
-	fmt.Printf("4096 16384 %d\n", SumBars(4096, 16384, hist.Distribution()))
-}
-
-// Given a sorted `[]hdrhistogram.Bar`, return the sum of every `Bar` in the
-// Range of (from, to]. Inclusive of from, exclusive of to.
-func SumBars(from int64, to int64, bars []hdrhistogram.Bar) int64 {
-	count := int64(0)
-	for _, bar := range bars {
-		if bar.To >= to {
-			// short circuit if we've passed the item
-			// we're interested in.
-			break
-		}
-		if bar.From >= from && bar.To < to {
-			count = count + bar.Count
-		}
+	latency := Quantiles{
+		Quantile50:  hist.ValueAtQuantile(50),
+		Quantile75:  hist.ValueAtQuantile(75),
+		Quantile90:  hist.ValueAtQuantile(90),
+		Quantile95:  hist.ValueAtQuantile(95),
+		Quantile99:  hist.ValueAtQuantile(99),
+		Quantile999: hist.ValueAtQuantile(999),
 	}
-	return count
+
+	if data, err := json.MarshalIndent(latency, "", "  "); err != nil {
+		log.Fatal("Unable to generate report: ", err)
+	} else {
+		fmt.Println(string(data))
+	}
 }

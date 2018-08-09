@@ -34,6 +34,7 @@ or:
 | `-header`             | `<none>`  | Adds additional headers to each request. Can be specified multiple times. Format is `key: value`. |
 | `-host`               | `<none>`  | Overrides the default host header value that's set on each request. |
 | `-interval`           | 10s       | How often to report stats to stdout. |
+| `-latencyUnit`        | ms        | latency units [ms|us|ns]. |
 | `-method`             | GET       | Determines which HTTP method to use when making the request. |
 | `-metric-addr`        | `<none>`  | Address to use when serving the Prometheus `/metrics` endpoint. No metrics are served if unset. Format is `host:port` or `:port`. |
 | `-noLatencySummary`   | `<unset>` | If set, don't print the latency histogram report at the end. |
