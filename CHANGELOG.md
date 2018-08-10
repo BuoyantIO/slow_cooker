@@ -5,6 +5,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Next release
 
+## [1.2.0] - 2018-08-10
+### Added
+- Added support for configuring latency time units via a `-latencyUnit` flag.
+
 ## [1.1.1] - 2018-06-19
 ### Added
 - Users can now check request bodies against an fnv-1a hash value with a configurable sample rate.
