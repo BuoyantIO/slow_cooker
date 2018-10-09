@@ -367,7 +367,9 @@ func main() {
 
 	requestData := loadData(*data)
 
-	// Repsonse tracking metadata.
+	iteration := uint64(0)
+
+	// Response tracking metadata.
 	count := uint64(0)
 	size := uint64(0)
 	good := uint64(0)
@@ -393,7 +395,7 @@ func main() {
 	var sendTraffic sync.WaitGroup
 	// The time portion of the header can change due to timezone.
 	timeLen := len(time.Now().Format(time.RFC3339))
-	timePadding := strings.Repeat(" ", timeLen)
+	timePadding := strings.Repeat(" ", timeLen-len("# "))
 	intLen := len(fmt.Sprintf("%s", *interval))
 	intPadding := strings.Repeat(" ", intLen-2)
 
@@ -403,7 +405,7 @@ func main() {
 		fmt.Printf("# sending %d %s req/s with concurrency=%d using url list %s ...\n", (*qps * *concurrency), *method, *concurrency, urldest[1:])
 	}
 
-	fmt.Printf("# %s good/b/f t   goal%% %s min [p50 p95 p99  p999]  max bhash change\n", timePadding, intPadding)
+	fmt.Printf("# %s iter   good/b/f t   goal%% %s min [p50 p95 p99  p999]  max bhash change\n", timePadding, intPadding)
 	stride := *concurrency
 	if stride > len(dstURLs) {
 		stride = 1
@@ -492,8 +494,9 @@ func main() {
 			changeIndicator := window.CalculateChangeIndicator(latencyHistory.Items, lastP99)
 			latencyHistory.Push(lastP99)
 
-			fmt.Printf("%s %6d/%1d/%1d %d %3d%% %s %3d [%3d %3d %3d %4d ] %4d %6d %s\n",
+			fmt.Printf("%s %4d %6d/%1d/%1d %d %3d%% %s %3d [%3d %3d %3d %4d ] %4d %6d %s\n",
 				t.Format(time.RFC3339),
+				iteration,
 				good,
 				bad,
 				failed,
@@ -509,6 +512,7 @@ func main() {
 				failedHashCheck,
 				changeIndicator)
 
+			iteration++
 			count = 0
 			size = 0
 			good = 0
