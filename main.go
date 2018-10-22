@@ -303,6 +303,7 @@ func shouldCheckHash(sampleRate float64) bool {
 func main() {
 	qps := flag.Int("qps", 1, "QPS to send to backends per request thread")
 	concurrency := flag.Int("concurrency", 1, "Number of request threads")
+	numIterations := flag.Uint64("iterations", 0, "Number of iterations (0 for infinite)")
 	host := flag.String("host", "", "value of Host header to set")
 	method := flag.String("method", "GET", "HTTP method to use")
 	interval := flag.Duration("interval", 10*time.Second, "reporting interval")
@@ -513,6 +514,10 @@ func main() {
 				changeIndicator)
 
 			iteration++
+
+			if *numIterations > 0 && iteration >= *numIterations {
+				cleanup <- true
+			}
 			count = 0
 			size = 0
 			good = 0

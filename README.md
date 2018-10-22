@@ -27,6 +27,7 @@ or:
 |-----------------------|-----------|-------------|
 | `-qps`                | 1         | QPS to send to backends per request thread. |
 | `-concurrency`        | 1         | Number of goroutines to run, each at the specified QPS level. Measure total QPS as `qps * concurrency`. |
+| `-iterations`         | 0         | Number of iterations for the experiment. Exits gracefully after `iterations * interval` (default 0, meaning infinite). |
 | `-compress`           | `<unset>` | If set, ask for compressed responses. |
 | `-data`               | `<none>`  | Include the specified body data in requests. If the data starts with a '@' the remaining value will be treated as a file path to read the body data from, or if the data value is '@-', the body data will be read from stdin. |
 | `-hashSampleRate`     | `0.0`     | Sampe Rate for checking request body's hash. Interval in the range of [0.0, 1.0] |
