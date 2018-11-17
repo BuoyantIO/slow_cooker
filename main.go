@@ -443,7 +443,7 @@ func main() {
 		}(i % len(dstURLs))
 	}
 
-	cleanup := make(chan bool, 2)
+	cleanup := make(chan bool, 3)
 	interrupted := make(chan os.Signal, 2)
 	signal.Notify(interrupted, syscall.SIGINT)
 
