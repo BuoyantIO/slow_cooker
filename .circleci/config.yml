@@ -1,0 +1,16 @@
+version: 2
+jobs:
+  build:
+    docker:
+    - image: circleci/golang:1.11.5-stretch
+    working_directory: /go/src/github.com/buoyantio/slow_cooker
+    steps:
+    - checkout
+    - restore_cache:
+        keys:
+          - go-build-cache
+    - run: go test -v ./...
+    - save_cache:
+        key: go-build-cache
+        paths:
+          - ~/.cache/go-build
