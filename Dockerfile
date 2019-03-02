@@ -1,13 +1,19 @@
-FROM library/golang:1.10.3 as golang
-WORKDIR /go/src/github.com/buoyantio/slow_cooker
-COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /go/bin/slow_cooker .
+FROM golang:1.11.5-stretch as build
 
-FROM alpine:3.7
+WORKDIR /slow_cooker
+
+COPY go.mod .
+COPY go.sum .
+RUN go mod download
+
+COPY . .
+
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -installsuffix cgo -o ./slow_cooker
+
+FROM alpine:3.9
 RUN apk --update upgrade && \
-    apk add curl ca-certificates && \
+    apk add ca-certificates curl nghttp2 && \
     update-ca-certificates && \
     rm -rf /var/cache/apk/*
-ENV PATH=$PATH:/go/bin
-COPY --from=golang /go/bin /go/bin
-ENTRYPOINT ["slow_cooker"]
+COPY --from=build /slow_cooker/slow_cooker /slow_cooker/
+ENTRYPOINT ["/slow_cooker/slow_cooker"]
