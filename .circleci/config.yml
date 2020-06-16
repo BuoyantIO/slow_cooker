@@ -2,7 +2,7 @@ version: 2
 jobs:
   build:
     docker:
-    - image: circleci/golang:1.11.5-stretch
+    - image: circleci/golang:1.14.2-stretch
     steps:
     - checkout
     - restore_cache:
