@@ -1,7 +1,7 @@
 # Releasing slow_cooker
 
 Once all of the branches for the release have been merged and the CHANGELOG.md
-file in master has been updated to describe the new release, use these
+file in main has been updated to describe the new release, use these
 instructions to publish the release to Github and Docker Hub.
 
 ## Github
