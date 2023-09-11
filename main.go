@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"crypto/tls"
+	"encoding/xml"
 	"flag"
 	"fmt"
 	"hash"
@@ -252,6 +253,56 @@ func loadURLs(urldest string) []*url.URL {
 	return urls
 }
 
+type Instances struct {
+	XMLName   xml.Name   `xml:"instances"`
+	Instances []Instance `xml:"instance"`
+}
+
+type Instance struct {
+	XMLName  xml.Name `xml:"instance"`
+	App      string   `xml:"app"`
+	HostName string   `xml:"hostName"`
+	IpAddr   string   `xml:"ipAddr"`
+	Status   string   `xml:"status"`
+	Port     string   `xml:"port"`
+}
+
+func loadEurekaURLs(urldest string, eurekaService string) []*url.URL {
+	var urls []*url.URL
+	resp, err := http.Get(urldest)
+
+	if err != nil {
+		panic(err)
+	}
+
+	defer resp.Body.Close()
+
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		panic(err)
+	}
+
+	var instances Instances
+	errr := xml.Unmarshal(b, &instances)
+	if errr != nil {
+		fmt.Println(errr)
+		panic(errr)
+	}
+
+	for i := 0; i < len(instances.Instances); i++ {
+		if strings.Contains(instances.Instances[i].App, eurekaService) {
+			URL, err := url.Parse(instances.Instances[i].HostName + ":" + instances.Instances[i].Port)
+			if err != nil {
+				panic(err)
+			}
+
+			urls = append(urls, URL)
+		}
+	}
+
+	return urls
+}
+
 var (
 	promRequests = prometheus.NewCounter(prometheus.CounterOpts{
 		Name: "requests",
@@ -322,6 +373,8 @@ func main() {
 	metricAddr := flag.String("metric-addr", "", "address to serve metrics on")
 	hashValue := flag.Uint64("hashValue", 0, "fnv-1a hash value to check the request body against")
 	hashSampleRate := flag.Float64("hashSampleRate", 0.0, "Sampe Rate for checking request body's hash. Interval in the range of [0.0, 1.0]")
+	useEureka := flag.Bool("useEureka", false, "Eureka will be used for getting urls list by a specific service")
+	eurekaService := flag.String("eurekaService", "", "Specify service from Eureka's list for testing. % may be used as wildcard")
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: %s <url> [flags]\n", path.Base(os.Args[0]))
@@ -340,7 +393,13 @@ func main() {
 	}
 
 	urldest := flag.Arg(0)
-	dstURLs := loadURLs(urldest)
+
+	// var dstURLs []*url.URL
+	// dstURLs := loadURLs(urldest)
+	if *useEureka {
+		fmt.Println("asdf")
+	}
+	dstURLs := loadEurekaURLs(urldest, *eurekaService)
 
 	if *qps < 1 {
 		exUsage("qps must be at least 1")
