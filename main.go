@@ -27,6 +27,7 @@ import (
 	"syscall"
 	"time"
 
+	eurekaurlsprovider "github.com/buoyantio/slow_cooker/eurekaUrlsProvider"
 	"github.com/buoyantio/slow_cooker/hdrreport"
 	"github.com/buoyantio/slow_cooker/ring"
 	"github.com/buoyantio/slow_cooker/window"
@@ -322,6 +323,8 @@ func main() {
 	metricAddr := flag.String("metric-addr", "", "address to serve metrics on")
 	hashValue := flag.Uint64("hashValue", 0, "fnv-1a hash value to check the request body against")
 	hashSampleRate := flag.Float64("hashSampleRate", 0.0, "Sampe Rate for checking request body's hash. Interval in the range of [0.0, 1.0]")
+	useEureka := flag.Bool("useEureka", false, "Eureka will be used for getting urls list by a specific service")
+	eurekaService := flag.String("eurekaService", "", "Specify service from Eureka's list for testing. % may be used as wildcard")
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: %s <url> [flags]\n", path.Base(os.Args[0]))
@@ -340,7 +343,13 @@ func main() {
 	}
 
 	urldest := flag.Arg(0)
-	dstURLs := loadURLs(urldest)
+
+	var dstURLs []*url.URL
+	if *useEureka {
+		dstURLs = eurekaurlsprovider.LoadEurekaURLs(urldest, *eurekaService)
+	} else {
+		dstURLs = loadURLs(urldest)
+	}
 
 	if *qps < 1 {
 		exUsage("qps must be at least 1")
