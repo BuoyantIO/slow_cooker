@@ -416,10 +416,8 @@ func main() {
 	}
 
 	fmt.Printf("# %s iter   good/b/f t   goal%% %s min [p50 p95 p99  p999]  max bhash change\n", timePadding, intPadding)
-	stride := *concurrency
-	if stride > len(dstURLs) {
-		stride = 1
-	}
+
+	callTimes := make([]int, len(dstURLs))
 	for i := 0; i < *concurrency; i++ {
 		ticker := time.NewTicker(timeToWait)
 		go func(offset int) {
@@ -438,15 +436,16 @@ func main() {
 				shouldFinishLock.RLock()
 				if !shouldFinish {
 					shouldFinishLock.RUnlock()
+					callTimes[y]++
 					sendRequest(client, *method, dstURLs[y], hosts[rand.Intn(len(hosts))], headers, requestData, atomic.AddUint64(&reqID, 1), *noreuse, *hashValue, checkHash, hasher, received, bodyBuffer)
 				} else {
 					shouldFinishLock.RUnlock()
 					sendTraffic.Done()
 					return
 				}
-				y += stride
+				y++
 				if y >= len(dstURLs) {
-					y = offset
+					y = 0
 				}
 			}
 		}(i % len(dstURLs))
@@ -484,6 +483,7 @@ func main() {
 				// Don't Wait() in the event loop or else we'll block the workers
 				// from draining.
 				sendTraffic.Wait()
+				fmt.Println(callTimes)
 				os.Exit(0)
 			}()
 		case t := <-timeout:
