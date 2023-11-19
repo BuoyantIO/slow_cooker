@@ -9,7 +9,6 @@ import (
 	"hash"
 	"hash/fnv"
 	"io"
-	"io/ioutil"
 	"log"
 	"math"
 	"math/rand"
@@ -27,10 +26,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/HdrHistogram/hdrhistogram-go"
 	"github.com/buoyantio/slow_cooker/hdrreport"
 	"github.com/buoyantio/slow_cooker/ring"
 	"github.com/buoyantio/slow_cooker/window"
-	"github.com/codahale/hdrhistogram"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -57,9 +56,9 @@ func newClient(
 		DisableKeepAlives:   noreuse,
 		MaxIdleConnsPerHost: maxConn,
 		Proxy:               http.ProxyFromEnvironment,
-		Dial: (&net.Dialer{
+		DialContext: (&net.Dialer{
 			Timeout: 5 * time.Second,
-		}).Dial,
+		}).DialContext,
 		TLSHandshakeTimeout: 5 * time.Second,
 		TLSClientConfig:     &tls.Config{InsecureSkipVerify: true},
 	}
@@ -115,7 +114,7 @@ func sendRequest(
 	} else {
 		defer response.Body.Close()
 		if !checkHash {
-			if sz, err := io.CopyBuffer(ioutil.Discard, response.Body, bodyBuffer); err == nil {
+			if sz, err := io.CopyBuffer(io.Discard, response.Body, bodyBuffer); err == nil {
 
 				received <- &MeasuredResponse{
 					sz:      uint64(sz),
@@ -125,7 +124,7 @@ func sendRequest(
 				received <- &MeasuredResponse{err: err}
 			}
 		} else {
-			if bytes, err := ioutil.ReadAll(response.Body); err != nil {
+			if bytes, err := io.ReadAll(response.Body); err != nil {
 				received <- &MeasuredResponse{err: err}
 			} else {
 				hasher.Write(bytes)
@@ -201,7 +200,7 @@ func loadData(data string) []byte {
 			defer file.Close()
 		}
 
-		requestData, err = ioutil.ReadAll(file)
+		requestData, err = io.ReadAll(file)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, err.Error())
 			os.Exit(1)
@@ -418,7 +417,7 @@ func main() {
 			// For each goroutine we want to reuse a buffer for performance reasons.
 			bodyBuffer := make([]byte, 50000)
 			sendTraffic.Add(1)
-			for _ = range ticker.C {
+			for range ticker.C {
 				var checkHash bool
 				hasher := fnv.New64a()
 				if *hashSampleRate > 0.0 {
