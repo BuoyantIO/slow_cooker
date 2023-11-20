@@ -1,4 +1,4 @@
-FROM golang:1.14.2-stretch as build
+FROM golang:1.21-bullseye as build
 
 WORKDIR /slow_cooker
 
@@ -10,7 +10,7 @@ COPY . .
 
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -installsuffix cgo -o ./slow_cooker
 
-FROM alpine:3.12
+FROM alpine:3.18
 RUN apk --update upgrade && \
     apk add ca-certificates curl nghttp2 && \
     update-ca-certificates && \

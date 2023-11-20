@@ -5,6 +5,11 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Next release
 
+## [1.2.1] - 2023-11-19
+### Changed
+- Fixed deprecated code.
+- Upgraded to Go 1.21; upgrade Docker images.
+
 ## [1.2.0] - 2018-08-10
 ### Added
 - Added support for configuring latency time units via a `-latencyUnit` flag.
