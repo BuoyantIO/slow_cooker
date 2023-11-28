@@ -43,6 +43,9 @@ or:
 | `-reportLatenciesCSV` | `<none>`  | Filename to write CSV latency values. Format of CSV is millisecond buckets with number of requests in each bucket. |
 | `-timeout`            | 10s       | Individual request timeout. |
 | `-totalRequests`      | `<none>`  | Exit after sending this many requests. |
+| `-useEureka `         | `<none>`  | If set, slow_cooker will try to get data from EurekaAPI by url argument.|                                                                                                                                                       
+| `-eurekaService  `    | `<none>`  | If set, slow_cooker will filter instances list by app tag.|                                                                                                                                                                     
+| `-eurekaExtraUri  `   | `<none>`  | If set, slow_cooker will append it to url from EurekaAPI.|
 | `-help`               | `<unset>` | If set, print all available flags and exit. |
 
 # Using a URL file
