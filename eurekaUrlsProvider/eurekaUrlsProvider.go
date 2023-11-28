@@ -40,7 +40,7 @@ type SecurePort struct {
 	PortValue string   `xml:",innerxml"`
 }
 
-func LoadEurekaURLs(urldest string, eurekaService string) []*url.URL {
+func LoadEurekaURLs(urldest string, eurekaService string, eurekaExtraUri string) []*url.URL {
 	var urls []*url.URL
 	resp, err := http.Get(urldest)
 
@@ -79,7 +79,7 @@ func LoadEurekaURLs(urldest string, eurekaService string) []*url.URL {
 				rawUrl = rawUrl + ":" + applications.Applications[i].Instance.SecurePort.PortValue
 			}
 
-			URL, err := url.Parse(rawUrl)
+			URL, err := url.Parse(rawUrl + eurekaExtraUri)
 			if err != nil {
 				panic(err)
 			}

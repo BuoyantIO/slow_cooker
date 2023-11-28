@@ -325,6 +325,7 @@ func main() {
 	hashSampleRate := flag.Float64("hashSampleRate", 0.0, "Sampe Rate for checking request body's hash. Interval in the range of [0.0, 1.0]")
 	useEureka := flag.Bool("useEureka", false, "Eureka will be used for getting urls list by a specific service")
 	eurekaService := flag.String("eurekaService", "", "Specify service from Eureka's list for testing. % may be used as wildcard")
+	eurekaExtraUri := flag.String("eurekaExtraUri", "", "If set, slow_cooker will append it to url from EurekaAPI.")
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: %s <url> [flags]\n", path.Base(os.Args[0]))
@@ -346,7 +347,7 @@ func main() {
 
 	var dstURLs []*url.URL
 	if *useEureka {
-		dstURLs = eurekaurlsprovider.LoadEurekaURLs(urldest, *eurekaService)
+		dstURLs = eurekaurlsprovider.LoadEurekaURLs(urldest, *eurekaService, *eurekaExtraUri)
 	} else {
 		dstURLs = loadURLs(urldest)
 	}
@@ -483,7 +484,6 @@ func main() {
 				// Don't Wait() in the event loop or else we'll block the workers
 				// from draining.
 				sendTraffic.Wait()
-				fmt.Println(callTimes)
 				os.Exit(0)
 			}()
 		case t := <-timeout:
